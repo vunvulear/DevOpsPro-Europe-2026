@@ -1,0 +1,29 @@
+# Cost-awareness reviewer checklist on infra PRs. No tokens, no external services.
+# Task: T8.2. Constitution: P-V (visibility over enforcement).
+
+name: cost
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/terraform/environments/*.tfvars'
+      - 'platform/policies/cost-policy.yaml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  cost-comment:
+    name: cost-comment
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render cost checklist
+        run: bash scripts/cost-comment.sh > cost-comment.md
+      - name: Post sticky PR comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: cost-checklist
+          path: cost-comment.md
