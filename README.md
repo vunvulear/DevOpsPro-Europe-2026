@@ -85,6 +85,17 @@ To validate locally before pushing:
 cd App; npm ci; cd ..\App_Test; npm ci; npm test
 ```
 
+## Operational readiness
+
+Just enough to run the Brașov Sunset API in Azure App Service without surprises.
+
+- **Health:** `GET /healthz` (liveness); `GET /readyz` recommended. App Service uses `/healthz` via `health_check_path` in Terraform.
+- **Smoke test:** runs automatically after every deployment (`smoke-test` job in [`.github/workflows/deploy-azure-app-service.yml`](.github/workflows/deploy-azure-app-service.yml)) — asserts `/` and `/sunset` return 200 with the expected payload.
+- **Logs:** Azure portal → App Service → **Log stream** / **Deployment Center** / **Diagnose and solve problems**, or `az webapp log tail`.
+- **Rollback:** re-run a previous green `Deploy to Azure App Service` run, or `git revert` and redeploy.
+
+Full guidance — including future improvements (structured logging, Application Insights, OpenTelemetry, SLOs/alerts) — is in [`platform/docs/operational-readiness.md`](platform/docs/operational-readiness.md).
+
 ## Spec-driven demo workflow
 
 This repo backs the conference talk **"Platform Engineering in 30 Minutes: Build a Golden Path, Not a PowerPoint"**.
