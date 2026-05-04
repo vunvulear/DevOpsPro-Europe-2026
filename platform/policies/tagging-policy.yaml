@@ -1,0 +1,18 @@
+# Required Azure resource tags. Mirrors infra/terraform/locals.tf:common_tags.
+# Task: T7.2.
+
+required_tags:
+  - project       # short slug
+  - environment   # dev | test | prod
+  - owner         # team or individual
+  - managed_by    # always "terraform" for IaC-managed resources
+  - repo          # <org>/<repo> on GitHub
+
+allowed_values:
+  environment: [dev, test, prod]
+  managed_by:  [terraform]
+
+enforced_by:
+  - layer: terraform
+    file: infra/terraform/locals.tf
+    note: All resources reference local.common_tags.

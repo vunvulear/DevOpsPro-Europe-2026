@@ -1,0 +1,14 @@
+# Service metadata schema. One file per service in a real platform; here we
+# document the shape the golden path expects. Task: T7.1.
+
+schema_version: 1
+
+service:
+  name: brasov-sunset-api
+  owner: <OWNER>            # team or individual; lands as a tag
+  repo: <ORG>/<REPO>        # GitHub org/repo
+  runtime: node-20-lts
+  tier: demo                # one of: demo, internal, customer-facing
+  contacts:
+    chat: <CHAT_HANDLE>
+    email: <ON_CALL_EMAIL>

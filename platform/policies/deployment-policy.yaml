@@ -1,0 +1,31 @@
+# Who can deploy, when, with which approval. Task: T0.2 + T7.3.
+
+auth:
+  mechanism: github-oidc
+  forbidden:
+    - publish_profile
+    - service_principal_secret
+    - AZURE_CREDENTIALS_json
+
+trigger:
+  workflows:
+    - .github/workflows/deploy.yml
+  modes:
+    - workflow_dispatch          # manual only; no auto-deploy on push
+
+approvals:
+  dev:
+    required: false              # demo simplification
+  test:
+    required: true               # placeholder; not yet implemented
+  prod:
+    required: true               # placeholder; not yet implemented
+
+branch_protection_intent:
+  branch: main
+  required_checks:
+    - ci / test
+    - security / npm-audit
+    - security / gitleaks
+    - security / trivy-fs
+  status: documented             # not enabled during the demo

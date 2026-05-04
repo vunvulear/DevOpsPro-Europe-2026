@@ -1,0 +1,18 @@
+# Per-environment SKU defaults and placeholder budgets. Task: T7.4.
+# Used by scripts/cost-comment.sh (Stage 8) to render the reviewer checklist.
+
+defaults:
+  dev:
+    sku_name: B1
+    monthly_budget_eur: <TEAM_BUDGET_EUR>
+  test:
+    sku_name: B2
+    monthly_budget_eur: <TEAM_BUDGET_EUR>
+  prod:
+    sku_name: P1v3
+    monthly_budget_eur: <TEAM_BUDGET_EUR>
+
+review_reminders:
+  - Has the service owner approved the SKU choice?
+  - Does the chosen SKU match the policy default for this environment?
+  - If overriding the default, is the rationale captured in the PR description?
