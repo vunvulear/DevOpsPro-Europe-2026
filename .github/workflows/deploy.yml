@@ -1,0 +1,76 @@
+# Manual deploy of App/ to Azure App Service via OIDC, then smoke test.
+# Task: T6.1. Constitution: P-I (no secrets), P-II (OIDC), P-III (skip-clean on no vars).
+
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev]
+        default: dev
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: App/package-lock.json
+      - name: Install prod deps
+        run: npm ci --omit=dev
+        working-directory: App
+      - name: Package
+        run: zip -r ../app.zip . -x '*.git*'
+        working-directory: App
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-zip
+          path: app.zip
+          retention-days: 1
+
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ vars.AZURE_CLIENT_ID != '' && vars.AZURE_APP_NAME != '' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-zip
+      - uses: azure/login@v2
+        with:
+          client-id:       ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_APP_NAME }}
+          package: app.zip
+
+  smoke-test:
+    name: smoke-test
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: ${{ vars.AZURE_APP_NAME != '' }}
+    env:
+      BASE_URL: https://${{ vars.AZURE_APP_NAME }}.azurewebsites.net
+    steps:
+      - name: Wait for cold start
+        run: curl --fail --retry 10 --retry-delay 5 --retry-all-errors "$BASE_URL/" -o /dev/null
+      - name: Smoke /healthz
+        run: curl --fail "$BASE_URL/healthz"
+      - name: Smoke /sunset asserts city + timezone
+        run: |
+          curl --fail "$BASE_URL/sunset" -o sunset.json
+          jq -e '.city == "Brasov" and .timezone == "Europe/Bucharest"' sunset.json
