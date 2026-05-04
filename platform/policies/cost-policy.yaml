@@ -12,14 +12,16 @@ principles:
 
 defaults:
   app_service_plan:
-    dev:  B1     # ~$13/mo, Linux, basic tier
+    dev:  B1      # cheapest reasonable Linux tier; verify current price in the Azure pricing calculator
     test: B1
-    prod: P1v3   # production-grade; revisit per workload
+    prod: P1v3    # production-grade starting point; revisit per workload SLO
 
 monthly_budget_usd:
-  dev: 50
-  test: 100
-  prod: 500
+  # Placeholders — each team sets these per environment, then wires them as
+  # Azure Cost Management budgets. Do not treat as authoritative.
+  dev:  "<TEAM_BUDGET_DEV>"
+  test: "<TEAM_BUDGET_TEST>"
+  prod: "<TEAM_BUDGET_PROD>"
 
 required_signals_on_pr:
   - terraform_plan_summary           # added by .github/workflows/terraform-plan.yml

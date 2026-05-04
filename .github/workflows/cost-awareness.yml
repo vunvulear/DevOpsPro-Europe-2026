@@ -1,0 +1,95 @@
+name: Cost Awareness
+
+# Lightweight cost reminder for infra changes.
+# - No external services, no Infracost token, no cloud credentials.
+# - Reads `sku_name` from each environments/*.tfvars file and posts a PR comment
+#   that points reviewers at the cost policy and the Azure pricing calculator.
+# - This is a reminder, NOT a cost calculator. Real numbers come from
+#   Infracost / Azure Cost Management when the team is ready to wire them up.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/terraform/**'
+      - 'platform/policies/cost-policy.yaml'
+      - '.github/workflows/cost-awareness.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  cost-comment:
+    name: Cost reminder comment
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract SKUs from tfvars
+        id: skus
+        run: |
+          set -e
+          out=""
+          shopt -s nullglob
+          for f in infra/terraform/environments/*.tfvars; do
+            env_name=$(basename "$f" .tfvars)
+            sku=$(grep -E '^[[:space:]]*sku_name[[:space:]]*=' "$f" | sed -E 's/.*=\s*"([^"]+)".*/\1/' | head -n1)
+            if [ -z "$sku" ]; then sku="(not set)"; fi
+            out+="| ${env_name} | ${sku} |"$'\n'
+          done
+          if [ -z "$out" ]; then
+            out="| (no environment files found) | — |"$'\n'
+          fi
+          {
+            echo "table<<EOF"
+            echo "$out"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const table = `${{ steps.skus.outputs.table }}`;
+            const body = [
+              '### Cost awareness reminder',
+              '',
+              'Detected App Service Plan SKUs in `infra/terraform/environments/`:',
+              '',
+              '| Environment | `sku_name` |',
+              '|---|---|',
+              table.trim(),
+              '',
+              '**Reviewer checklist** (per [`platform/policies/cost-policy.yaml`](../blob/main/platform/policies/cost-policy.yaml)):',
+              '- [ ] SKU choice is intentional and matches the environment.',
+              '- [ ] PR description explains any SKU change.',
+              '- [ ] Required tags (`project`, `environment`, `owner`) are present on new resources.',
+              '- [ ] Cost impact has been verified against the [Azure pricing calculator](https://azure.microsoft.com/pricing/calculator/) for the target region.',
+              '',
+              '_This comment is a reminder, not a calculator. See [`platform/docs/cost-awareness.md`](../blob/main/platform/docs/cost-awareness.md) for what would be added later (Infracost, Azure Cost Management)._',
+            ].join('\n');
+
+            // Update existing reminder comment if present, otherwise create one.
+            const marker = '### Cost awareness reminder';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body && c.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
