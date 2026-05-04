@@ -1,0 +1,137 @@
+name: Deploy to Azure App Service
+
+# Manual deployment of the Brasov Sunset API (App/) to Azure App Service.
+# - Trigger: workflow_dispatch only (no push-to-deploy in the demo).
+# - Auth:    GitHub Actions OIDC -> Azure (no client secrets, no publish profiles).
+# - Smoke:   curl /, /sunset against the deployed URL (when AZURE_WEBAPP_URL is set).
+#
+# Safe for a public repo: deployment cannot start unless the three Azure OIDC
+# repo Variables are configured AND someone clicks "Run workflow".
+
+on:
+  workflow_dispatch:
+    inputs:
+      webapp_name:
+        description: 'Override AZURE_WEBAPP_NAME (optional)'
+        required: false
+        default: ''
+      webapp_url:
+        description: 'Override AZURE_WEBAPP_URL for smoke test (optional, e.g. https://app-foo.azurewebsites.net)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  id-token: write   # Azure OIDC
+
+env:
+  APP_DIR: App
+  NODE_VERSION: '20'
+  ARTIFACT_NAME: brasov-sunset-api
+
+jobs:
+  build:
+    name: Build & package App/
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: App/package-lock.json
+
+      - name: Install production dependencies
+        working-directory: ${{ env.APP_DIR }}
+        run: npm ci --omit=dev
+
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.APP_DIR }}
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: Deploy to Azure App Service (OIDC)
+    needs: build
+    runs-on: ubuntu-latest
+    # Skip safely on forks or repos without OIDC variables configured.
+    if: ${{ vars.AZURE_CLIENT_ID != '' && vars.AZURE_TENANT_ID != '' && vars.AZURE_SUBSCRIPTION_ID != '' }}
+    environment:
+      name: dev
+      url: ${{ steps.deploy.outputs.webapp-url }}
+    steps:
+      - name: Download deployment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: app-package
+
+      - name: Resolve target webapp name
+        id: target
+        run: |
+          NAME="${{ inputs.webapp_name }}"
+          if [ -z "$NAME" ]; then NAME="${{ vars.AZURE_WEBAPP_NAME }}"; fi
+          if [ -z "$NAME" ]; then
+            echo "::error::No webapp name provided. Set repo variable AZURE_WEBAPP_NAME or pass workflow input 'webapp_name'."
+            exit 1
+          fi
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Web App
+        id: deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ steps.target.outputs.name }}
+          package: app-package
+
+      - name: Azure logout
+        if: always()
+        run: az logout || true
+
+  smoke-test:
+    name: Smoke test (/, /sunset)
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: ${{ inputs.webapp_url != '' || vars.AZURE_WEBAPP_URL != '' }}
+    steps:
+      - name: Resolve URL
+        id: url
+        run: |
+          URL="${{ inputs.webapp_url }}"
+          if [ -z "$URL" ]; then URL="${{ vars.AZURE_WEBAPP_URL }}"; fi
+          URL="${URL%/}"
+          echo "base=$URL" >> "$GITHUB_OUTPUT"
+          echo "Smoke-testing $URL"
+
+      - name: GET / (with retries for cold start)
+        run: |
+          set -e
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /tmp/root.json -w "%{http_code}" "${{ steps.url.outputs.base }}/" || true)
+            echo "Attempt $i -> HTTP $code"
+            if [ "$code" = "200" ]; then break; fi
+            sleep $((5 * i))
+          done
+          [ "$code" = "200" ] || { cat /tmp/root.json; echo "Root check failed"; exit 1; }
+          cat /tmp/root.json
+
+      - name: GET /sunset and assert payload
+        run: |
+          set -e
+          code=$(curl -s -o /tmp/sunset.json -w "%{http_code}" "${{ steps.url.outputs.base }}/sunset")
+          echo "HTTP $code"
+          [ "$code" = "200" ] || { cat /tmp/sunset.json; exit 1; }
+          grep -q '"city": *"Brasov"'  /tmp/sunset.json
+          grep -q '"timezone": *"Europe/Bucharest"' /tmp/sunset.json
+          cat /tmp/sunset.json
