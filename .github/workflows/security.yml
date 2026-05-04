@@ -1,0 +1,114 @@
+name: Security
+
+# Public-repo + demo-friendly security scanning for the golden path.
+# Runs on PRs, pushes to main, and weekly. No paid tools, no cloud credentials,
+# no secrets required (Gitleaks is free on public repos; Trivy & Checkov are OSS).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write   # allows uploading SARIF to the Security tab
+
+jobs:
+  npm-audit:
+    name: npm audit (Node.js dependencies)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            App/package-lock.json
+            App_Test/package-lock.json
+
+      - name: Audit App/ (production deps)
+        working-directory: App
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit App_Test/ (dev deps allowed, fail on high)
+        working-directory: App_Test
+        run: npm audit --audit-level=high
+
+  gitleaks:
+    name: Gitleaks (secret scanning)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so Gitleaks can scan all commits
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          # Free for public repos; no license/secret required.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  trivy-fs:
+    name: Trivy (filesystem & dependency scan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+
+      - name: Trivy SARIF for Security tab
+        if: always()
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: '0'
+
+      - name: Upload Trivy SARIF
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+  checkov-iac:
+    name: Checkov (IaC) — placeholder until Terraform lands
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect Terraform sources
+        id: tf
+        run: |
+          if compgen -G "infra/terraform/*.tf" > /dev/null; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No Terraform files yet under infra/terraform/. Skipping Checkov. This step will activate automatically once IaC is added."
+          fi
+
+      - name: Run Checkov on Terraform
+        if: steps.tf.outputs.found == 'true'
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infra/terraform
+          framework: terraform
+          quiet: true
+          soft_fail: false
