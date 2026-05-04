@@ -58,6 +58,36 @@ State is **local** for the live demo (no `backend` block). This keeps the demo f
 >
 > With remote state you also get state locking (Azure Blob lease) and shared visibility for the team. Add the `backend` block, run `terraform init -migrate-state`, and commit.
 
+## CI: Terraform Plan workflow
+
+[`.github/workflows/terraform-plan.yml`](../../.github/workflows/terraform-plan.yml) runs on PRs and pushes to `main` that touch `infra/terraform/`.
+
+Two jobs:
+
+1. **`validate`** — always runs. `terraform fmt -check`, `terraform init -backend=false`, `terraform validate`. **No Azure credentials needed**, so it's safe for public PRs and forks.
+2. **`plan`** — runs only when the three Azure OIDC repo **variables** below are set. Logs into Azure with `azure/login@v2` (OIDC, no secrets), runs `terraform init` + `terraform plan`, and posts the plan as a PR comment.
+
+### Required GitHub repo configuration for the `plan` job
+
+These are GitHub Actions **variables** (Repository → Settings → Secrets and variables → Actions → **Variables** tab) — **not secrets**, because they are not sensitive:
+
+| Variable | Example | Purpose |
+|---|---|---|
+| `AZURE_CLIENT_ID` | `00000000-0000-0000-0000-000000000000` | App registration / managed identity client ID |
+| `AZURE_TENANT_ID` | `00000000-0000-0000-0000-000000000000` | Azure AD tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | `00000000-0000-0000-0000-000000000000` | Subscription that hosts the resource group |
+
+You also need a **federated credential** on the app registration (or user-assigned managed identity) authorizing this repo + branch. Microsoft docs: ["Configure a federated identity credential on an app"](https://learn.microsoft.com/azure/active-directory/develop/workload-identity-federation-create-trust).
+
+If any of the three variables is missing, the `plan` job skips itself with a green status — `validate` still runs.
+
+### What is intentionally simplified
+
+- **No real `secrets`** for Azure auth — OIDC is used, IDs live in repo **variables**.
+- **No remote backend in CI either.** `terraform init` runs against local state inside the runner; the plan is computed and discarded. Real projects must use `azurerm` remote state for shared visibility & locking.
+- **Single environment** (`dev.tfvars`); add a matrix or per-branch logic when more environments exist.
+- **Plan is informational on PRs** — it is not used as the input to `terraform apply` (no `apply` workflow yet).
+
 ## Validate locally
 
 ```powershell

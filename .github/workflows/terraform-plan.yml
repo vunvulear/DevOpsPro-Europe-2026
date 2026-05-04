@@ -1,0 +1,127 @@
+name: Terraform Plan
+
+# Validate and plan Terraform changes for infra/terraform/.
+#
+# Two jobs:
+#   1. validate  — always runs (fmt + init + validate, no Azure credentials needed)
+#   2. plan      — runs only when Azure OIDC repo variables are configured
+#
+# This keeps the repo safe for forks and public contributors: validation always
+# runs; the actual `terraform plan` (which talks to Azure) is opt-in.
+
+on:
+  push:
+    branches: [main]
+    paths: ['infra/terraform/**', '.github/workflows/terraform-plan.yml']
+  pull_request:
+    branches: [main]
+    paths: ['infra/terraform/**', '.github/workflows/terraform-plan.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write   # for posting the plan as a PR comment
+  id-token: write        # for Azure OIDC federated login
+
+env:
+  TF_VERSION: '1.9.8'
+  TF_WORKING_DIR: infra/terraform
+  TF_VAR_FILE: environments/dev.tfvars
+
+jobs:
+  validate:
+    name: fmt + init + validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: terraform fmt (check)
+        run: terraform fmt -check -recursive
+
+      - name: terraform init (no backend)
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        run: terraform validate -no-color
+
+  plan:
+    name: terraform plan (Azure OIDC)
+    needs: validate
+    runs-on: ubuntu-latest
+    # Only run if the three OIDC variables are configured on the repo.
+    # Forks and unconfigured clones safely skip this job.
+    if: ${{ vars.AZURE_CLIENT_ID != '' && vars.AZURE_TENANT_ID != '' && vars.AZURE_SUBSCRIPTION_ID != '' }}
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+    env:
+      ARM_USE_OIDC:        'true'
+      ARM_CLIENT_ID:       ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID:       ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC, no secrets)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: terraform init
+        run: terraform init
+
+      - name: terraform plan
+        id: plan
+        run: |
+          terraform plan -no-color -input=false \
+            -var-file="${{ env.TF_VAR_FILE }}" \
+            -out=tfplan | tee plan.txt
+          echo "plan_size=$(wc -c < plan.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Comment plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const planPath = path.join('${{ env.TF_WORKING_DIR }}', 'plan.txt');
+            let plan = fs.readFileSync(planPath, 'utf8');
+            const max = 60000; // GitHub comment limit is ~65k chars
+            if (plan.length > max) {
+              plan = plan.slice(0, max) + '\n\n... (truncated)';
+            }
+            const body = [
+              '### Terraform Plan (`infra/terraform/`)',
+              '',
+              '<details><summary>Show plan</summary>',
+              '',
+              '```hcl',
+              plan,
+              '```',
+              '',
+              '</details>',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
