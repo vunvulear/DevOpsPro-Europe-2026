@@ -32,6 +32,14 @@ describe('Brasov Sunset API', () => {
     });
   });
 
+  describe('GET /healthz', () => {
+    test('returns 200 and {status:"ok"}', async () => {
+      const res = await request(app).get('/healthz');
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ status: 'ok' });
+    });
+  });
+
   describe('GET /sunset', () => {
     let res;
 

@@ -16,6 +16,10 @@ app.get('/', (req, res) => {
   });
 });
 
+app.get('/healthz', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
 app.get('/sunset', (req, res) => {
   const now = new Date();
   const times = SunCalc.getTimes(now, BRASOV_LAT, BRASOV_LON);
