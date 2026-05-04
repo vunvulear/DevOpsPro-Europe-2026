@@ -35,6 +35,7 @@ Server: `http://localhost:3000`
 | Method | Path       | Description                        |
 |-------:|------------|------------------------------------|
 | GET    | `/`        | API info                           |
+| GET    | `/healthz` | Liveness probe (`{"status":"ok"}`) |
 | GET    | `/sunset`  | Today's sunset time for Brașov     |
 
 #### Example response — `GET /sunset`
@@ -65,6 +66,33 @@ The suite (`App_Test/tests/sunset.test.js`) covers:
 - **`GET /`** — status, JSON content-type, payload shape.
 - **`GET /sunset`** — status, city/country, timezone, coordinates, `HH:MM:SS` formatting, valid ISO `sunset_utc`, sunset day matches today in `Europe/Bucharest`, and parity with a fresh `SunCalc` computation.
 - **Unknown routes** — returns `404`.
+
+## Repository configuration
+
+The golden-path workflows authenticate to Azure via **GitHub OIDC** —
+**no secrets** are stored in this repository. All Azure identifiers are
+configured as GitHub repository **Variables** (Settings → Secrets and
+variables → Actions → **Variables** tab), never Secrets.
+
+| Variable                | Purpose                                               |
+|-------------------------|-------------------------------------------------------|
+| `AZURE_CLIENT_ID`       | App Registration / Managed Identity client ID         |
+| `AZURE_TENANT_ID`       | Azure AD tenant ID                                    |
+| `AZURE_SUBSCRIPTION_ID` | Target subscription ID                                |
+| `AZURE_RESOURCE_GROUP`  | Resource group name (informational; used by runbook)  |
+| `AZURE_APP_NAME`        | Globally-unique App Service name                      |
+| `AZURE_LOCATION`        | Azure region (e.g. `westeurope`)                      |
+
+A federated credential on the App Registration / Managed Identity must
+trust this repository (subject example:
+`repo:<ORG>/<REPO>:ref:refs/heads/main` and `repo:<ORG>/<REPO>:pull_request`).
+
+**Forks** require zero setup: every Azure-touching job is gated by
+`if: ${{ vars.AZURE_CLIENT_ID != '' }}` and skips cleanly green when the
+variables are absent (constitution principle III — fork-safe skip-clean).
+
+Branch protection on `main` is **documented intent**, not yet enabled
+(see `platform/policies/deployment-policy.yaml`).
 
 ## Spec-driven demo workflow
 
