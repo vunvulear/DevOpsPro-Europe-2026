@@ -1,50 +1,71 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# DevOpsPro-Europe-2026 Constitution
+
+The non-negotiable principles of the golden path in this repository.
+Short on purpose. Every other doc, workflow, or policy must align with these.
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Spec-First
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Every change begins with a spec, plan, or task update under `specs/`.
+Code follows the spec, not the other way around.
+Drive-by changes that don't fit any spec must surface that gap explicitly.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. Small, Readable, Demo-Friendly
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+Each capability is one or two short files that fit on a screen.
+Workflows, Terraform, and policies must be explainable in under a minute on stage.
+Prefer one focused tool over four overlapping ones.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. No Secrets, No Hardcoded IDs
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+The repository contains no tokens, no client secrets, and no Azure
+subscription, tenant, client, or resource IDs at any commit on `main`.
+Azure auth uses GitHub Actions OIDC; non-sensitive IDs live as repo Variables.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### IV. Visibility Over Enforcement (for now)
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+Guardrails surface findings — annotations, PR comments, plan diffs — before
+they block merges. As the team gains confidence, soft guardrails harden into
+required checks. Never the other way around.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. Public-Repo Friendly by Default
+
+A fresh fork must run CI, security, and Terraform validate green on day one
+with no setup. Jobs that need Azure access auto-skip with a green status when
+the relevant repo Variables are missing.
+
+### VI. The Path Is the Product
+
+The same CI, security, plan, deploy, and cost checks run on every PR — bug
+fixes, hotfixes, refactors, and infra changes alike. The path is never
+bypassed under pressure; if it's slowing the team down, fix the path.
+
+## Demo Constraints
+
+This repository backs the conference talk **"Platform Engineering in 30 Minutes:
+Build a Golden Path, Not a PowerPoint"**. Two extra rules apply during the demo
+phase and are documented inline as "intentionally simplified":
+
+- Local Terraform state, single environment (`dev`), manual deploy.
+- Checkov runs in `soft_fail` mode; cost is visible, not blocking.
+
+When the demo phase ends, those simplifications must be reviewed against the
+principles above before the path is reused for any real workload.
+
+## Change Process
+
+- Spec / plan / tasks update before code (Principle I).
+- One focused PR per capability or hotfix.
+- Required checks on `main`: `ci`, `security`, `terraform-plan` (when infra
+  changes), and the smoke test on deploy.
+- Constitution amendments require a PR description that names the principle
+  being added, removed, or relaxed and the reason.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes any conflicting guidance elsewhere in the repo.
+Reviewers must check PRs against the principles above; complexity that violates
+any principle must be justified in writing on the PR.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-05-04

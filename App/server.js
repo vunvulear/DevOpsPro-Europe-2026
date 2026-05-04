@@ -12,8 +12,12 @@ const BRASOV_TZ = 'Europe/Bucharest';
 app.get('/', (req, res) => {
   res.json({
     message: 'Brasov Sunset API',
-    endpoints: ['/sunset']
+    endpoints: ['/sunset', '/healthz']
   });
+});
+
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ status: 'ok' });
 });
 
 app.get('/sunset', (req, res) => {
