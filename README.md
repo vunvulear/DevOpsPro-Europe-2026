@@ -66,7 +66,18 @@ The suite (`App_Test/tests/sunset.test.js`) covers:
 - **`GET /sunset`** — status, city/country, timezone, coordinates, `HH:MM:SS` formatting, valid ISO `sunset_utc`, sunset day matches today in `Europe/Bucharest`, and parity with a fresh `SunCalc` computation.
 - **Unknown routes** — returns `404`.
 
+## Spec-driven demo workflow
+
+This repo backs the conference talk **"Platform Engineering in 30 Minutes: Build a Golden Path, Not a PowerPoint"**.
+
+- **Spec Kit** ([github/spec-kit](https://github.com/github/spec-kit)) structures the work. The golden-path artifacts live under `specs/golden-path/` and are produced via `/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, `/speckit.implement`.
+- **Windsurf / Cascade** is the coding agent that implements each step. Slash commands are defined in `.windsurf/workflows/`. Extension workflows added for the demo: `/modify`, `/refactor`, `/bugfix`, `/hotfix`.
+- **GitHub Actions** validates the golden path: build/test, security scan, Terraform plan, deploy.
+- **Azure App Service** is the deployment target for the Brașov Sunset API.
+
+The live demo script is in `prompts/` (numbered `00`..`15`). Setup details are in [`platform/docs/spec-kit-setup.md`](platform/docs/spec-kit-setup.md).
+
 ## Notes
 
-- `Prompts/` is git-ignored (see `.gitignore`).
+- `prompts/` is tracked in git (demo script). Local private notes like `Prompts/1.md` remain ignored via `.gitignore`.
 - The API exports the Express `app` and only calls `listen()` when executed directly, which lets tests import it via Supertest without binding a port.
