@@ -7,3 +7,20 @@ npm-debug.log*
 
 # Local private prompt notes (the demo prompts/ folder is tracked)
 Prompts/1.md
+
+# Terraform — never commit state, plans, or local provider cache
+# (constitution P-I: no secrets; state can contain resource IDs/connection strings)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+.terraform.lock.hcl
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

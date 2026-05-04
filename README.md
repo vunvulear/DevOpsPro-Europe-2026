@@ -103,9 +103,14 @@ This repo backs the conference talk **"Platform Engineering in 30 Minutes: Build
 - **GitHub Actions** validates the golden path: build/test, security scan, Terraform plan, deploy.
 - **Azure App Service** is the deployment target for the Brașov Sunset API.
 
-The live demo script is in `prompts/` (numbered `00`..`15`). Setup details are in [`platform/docs/spec-kit-setup.md`](platform/docs/spec-kit-setup.md).
+The live demo script and hotfix scenario are in
+[`specs/golden-path/demo-script.md`](specs/golden-path/demo-script.md) and
+[`specs/golden-path/hotfix-scenario.md`](specs/golden-path/hotfix-scenario.md).
+Numbered prompts that build the artifact step-by-step live in
+[`Prompts/`](Prompts/) (`00`..`15`). Cross-cutting principles are in
+[`.specify/memory/constitution.md`](.specify/memory/constitution.md).
 
 ## Notes
 
-- `prompts/` is tracked in git (demo script). Local private notes like `Prompts/1.md` remain ignored via `.gitignore`.
+- `Prompts/` is tracked in git (demo script). Local private notes like `Prompts/1.md` remain ignored via `.gitignore`.
 - The API exports the Express `app` and only calls `listen()` when executed directly, which lets tests import it via Supertest without binding a port.
