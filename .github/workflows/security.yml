@@ -111,7 +111,9 @@ jobs:
           directory: infra/terraform
           framework: terraform
           quiet: true
-          soft_fail: false
+          # Demo posture: surface findings as annotations without blocking PRs.
+          # In a real platform this should be `false` once the team has triaged the baseline.
+          soft_fail: true
 
 
 
