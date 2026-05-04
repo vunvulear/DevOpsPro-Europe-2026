@@ -1,0 +1,45 @@
+# Cost policy for infrastructure changes.
+# Goal: cost should never be a surprise at month end.
+
+apiVersion: platform/v1
+kind: CostPolicy
+
+principles:
+  - "Cost is a first-class review concern, like correctness and security."
+  - "Every infra PR must show a monthly cost delta before approval."
+  - "SKU choices must be intentional and documented in the PR description."
+  - "Defaults favor the cheapest reasonable option that still meets the SLO."
+
+defaults:
+  app_service_plan:
+    dev:  B1     # ~$13/mo, Linux, basic tier
+    test: B1
+    prod: P1v3   # production-grade; revisit per workload
+
+monthly_budget_usd:
+  dev: 50
+  test: 100
+  prod: 500
+
+required_signals_on_pr:
+  - terraform_plan_summary           # added by .github/workflows/terraform-plan.yml
+  - cost_diff_comment                # planned: Infracost workflow
+  - sku_change_justification         # PR description, when var.sku_name changes
+
+review_rules:
+  - "If monthly cost diff > +20% or > +$25/mo, require platform-team review."
+  - "If a resource is removed, double-check the destroy is intentional."
+  - "If cost is unknown, do not merge."
+
+enforcement:
+  status: partial
+  enforced:
+    - "SKU is set explicitly via var.sku_name; no provider default fallthrough."
+    - "Terraform plan summary appears on every PR touching infra/terraform/."
+  documented_only:
+    - "Monthly budgets per environment."
+    - "20% / $25 review threshold."
+  future:
+    - "Add Infracost workflow (.github/workflows/cost.yml)."
+    - "Block merges when cost_diff_comment is missing."
+    - "Wire Azure Cost Management budget alerts to a Teams/Slack webhook."

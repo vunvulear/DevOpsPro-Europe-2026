@@ -1,0 +1,35 @@
+# Tagging policy for all Azure resources managed by this repo.
+# Applied via Terraform's local.common_tags in infra/terraform/main.tf.
+# Could be enforced via Azure Policy or Checkov rules later.
+
+apiVersion: platform/v1
+kind: TaggingPolicy
+
+required_tags:
+  - name: project
+    description: Logical project / service this resource belongs to.
+    example: brasov-sunset-api
+
+  - name: environment
+    description: Deployment environment.
+    allowed_values: [dev, test, prod]
+
+  - name: owner
+    description: Team or person accountable for the resource.
+    example: platform-team
+
+recommended_tags:
+  - name: managed_by
+    description: Tool that manages the resource lifecycle.
+    example: terraform
+
+  - name: repo
+    description: GitHub repository slug.
+    example: DevOpsPro-Europe-2026
+
+enforcement:
+  status: documented      # informational today
+  future:
+    - "Validate in `terraform validate` via a custom check."
+    - "Enforce with Azure Policy: 'Require a tag and its value on resources'."
+    - "Detect missing tags with Checkov rule CKV_AZURE_*."

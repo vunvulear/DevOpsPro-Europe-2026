@@ -1,0 +1,44 @@
+# Service metadata for the Brașov Sunset API.
+# One file per service; serves as a lightweight service catalog entry and
+# the source of truth for owner / project / runtime expectations.
+#
+# Required fields are checked manually today; could be validated in CI later
+# (see platform/docs/policy-guardrails.md).
+
+apiVersion: platform/v1
+kind: Service
+
+metadata:
+  name: brasov-sunset-api
+  description: Returns today's sunset time for Brașov, Romania.
+
+owner:
+  team: platform-team
+  contact: platform-team@example.com   # placeholder, replace with a real DL/channel
+
+project:
+  name: brasov-sunset-api
+  repository: https://github.com/vunvulear/DevOpsPro-Europe-2026
+
+runtime:
+  language: nodejs
+  version: "20-lts"
+  framework: express
+
+deployment:
+  target: azure-app-service
+  environments:
+    - dev
+  iac: infra/terraform
+
+operations:
+  health_endpoint: /healthz
+  readiness_endpoint: /readyz
+  runbook: docs/runbook.md         # to be added in the operational-readiness step
+  smoke_tests: required-after-deploy
+
+tags:
+  required:
+    - project
+    - environment
+    - owner
