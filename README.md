@@ -66,6 +66,25 @@ The suite (`App_Test/tests/sunset.test.js`) covers:
 - **`GET /sunset`** — status, city/country, timezone, coordinates, `HH:MM:SS` formatting, valid ISO `sunset_utc`, sunset day matches today in `Europe/Bucharest`, and parity with a fresh `SunCalc` computation.
 - **Unknown routes** — returns `404`.
 
+## CI
+
+Continuous integration is the first capability of the golden path.
+
+- **Workflow:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+- **Triggers:** pull requests targeting `main` and pushes to `main`.
+- **What it does:**
+  1. Checks out the repo on `ubuntu-latest`.
+  2. Sets up Node.js 20 with built-in `npm` caching for both lockfiles.
+  3. Runs `npm ci` in `App/` and in `App_Test/`.
+  4. Runs `npm test` in `App_Test/` (Jest + Supertest against the Express `app`).
+- **Why it matters for the golden path:** every change is validated on a clean runner before it can reach `main`. No secrets, no deployment — just a fast, reliable safety net that the rest of the golden path (security, infra, deploy) builds on.
+
+To validate locally before pushing:
+
+```powershell
+cd App; npm ci; cd ..\App_Test; npm ci; npm test
+```
+
 ## Spec-driven demo workflow
 
 This repo backs the conference talk **"Platform Engineering in 30 Minutes: Build a Golden Path, Not a PowerPoint"**.
