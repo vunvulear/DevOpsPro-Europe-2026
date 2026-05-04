@@ -1,0 +1,17 @@
+{
+  "name": "brasov-sunset-api-tests",
+  "version": "1.0.0",
+  "description": "Unit/integration tests for Brasov Sunset API",
+  "scripts": {
+    "test": "jest --verbose"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
+  },
+  "dependencies": {
+    "brasov-sunset-api": "file:../App",
+    "suncalc": "^1.9.0",
+    "express": "^4.19.2"
+  }
+}
