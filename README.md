@@ -66,7 +66,18 @@ The suite (`App_Test/tests/sunset.test.js`) covers:
 - **`GET /sunset`** — status, city/country, timezone, coordinates, `HH:MM:SS` formatting, valid ISO `sunset_utc`, sunset day matches today in `Europe/Bucharest`, and parity with a fresh `SunCalc` computation.
 - **Unknown routes** — returns `404`.
 
+## Platform Engineering
+
+This repository is also a small **Platform Engineering golden path**
+demo. The platform capabilities (CI, security, IaC, deployment,
+policies, cost awareness, operational readiness) are layered on top
+of the existing application without changing it.
+
+See [`docs/platform-engineering.md`](docs/platform-engineering.md) for
+the high-level intent, goals, non-goals, and standards used across
+the golden path.
+
 ## Notes
 
-- `Prompts/` is git-ignored (see `.gitignore`).
+- `Prompts/`, `prompts/`, and `prompts_clean/` are git-ignored (see `.gitignore`).
 - The API exports the Express `app` and only calls `listen()` when executed directly, which lets tests import it via Supertest without binding a port.
