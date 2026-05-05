@@ -1,0 +1,10 @@
+# Global owners
+*                       @your-org/platform
+
+# Infrastructure
+/infra/                 @your-org/platform
+/.github/workflows/     @your-org/platform
+
+# App code
+/App/                   @your-org/api
+/App_Test/              @your-org/api

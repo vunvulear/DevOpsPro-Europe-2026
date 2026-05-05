@@ -1,0 +1,6 @@
+resource_group_name  = "rg-sunsetapi-tfstate"
+storage_account_name = "stsunsetapitfXXXXX"  # from bootstrap output
+container_name       = "tfstate"
+key                  = "envs/dev.tfstate"
+use_oidc             = true
+use_azuread_auth     = true

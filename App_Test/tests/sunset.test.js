@@ -86,6 +86,24 @@ describe('Brasov Sunset API', () => {
     });
   });
 
+  describe('GET /healthz', () => {
+    test('returns 200 and ok status', async () => {
+      const res = await request(app).get('/healthz');
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('ok');
+      expect(typeof res.body.uptime_s).toBe('number');
+      expect(typeof res.body.started_at).toBe('string');
+    });
+  });
+
+  describe('GET /readyz', () => {
+    test('returns 200 and ready status', async () => {
+      const res = await request(app).get('/readyz');
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('ready');
+    });
+  });
+
   describe('Unknown routes', () => {
     test('returns 404 for unknown path', async () => {
       const res = await request(app).get('/does-not-exist');

@@ -70,3 +70,65 @@ The suite (`App_Test/tests/sunset.test.js`) covers:
 
 - `Prompts/` is git-ignored (see `.gitignore`).
 - The API exports the Express `app` and only calls `listen()` when executed directly, which lets tests import it via Supertest without binding a port.
+
+## Platform Engineering
+
+This repo ships a full Platform Engineering setup for Azure. See:
+
+- `docs/PLATFORM.md` — architecture, components, and decisions.
+- `docs/RUNBOOK.md` — day-2 operations.
+- `docs/DR.md` — disaster recovery posture.
+- `infra/terraform/` — IaC (bootstrap + dev/prod environments).
+- `.github/workflows/` — CI, CodeQL, CD-Dev, CD-Prod, Release.
+
+### Layout
+
+```
+.
+├── App/                      # Node.js API + Dockerfile
+├── App_Test/                 # Jest + Supertest tests
+├── infra/terraform/
+│   ├── bootstrap/            # Remote state + GitHub OIDC
+│   ├── modules/              # observability, registry, identity, keyvault, container_app
+│   └── envs/{dev,prod}/      # Per-env root modules
+├── .github/
+│   ├── workflows/            # ci, codeql, cd-dev, cd-prod, release
+│   ├── dependabot.yml
+│   ├── CODEOWNERS
+│   └── pull_request_template.md
+├── scripts/                  # bootstrap-azure.ps1, local-dev.ps1
+├── docs/                     # PLATFORM.md, RUNBOOK.md, DR.md
+└── Makefile
+```
+
+### Operational endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /` | API info |
+| `GET /sunset` | Today's sunset for Brașov |
+| `GET /healthz` | Liveness probe |
+| `GET /readyz` | Readiness probe (verifies SunCalc) |
+
+### Quick start (Azure)
+
+```powershell
+# 1. One-time bootstrap (creates state backend + GitHub OIDC AAD app)
+./scripts/bootstrap-azure.ps1 -GitHubRepo vunvulear/DevOpsPro-Europe-2026
+
+# 2. Set the printed outputs as GitHub repository secrets:
+#    AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID,
+#    TFSTATE_RG, TFSTATE_STORAGE
+
+# 3. Create GitHub Environments 'dev' and 'prod' (add reviewers to 'prod').
+
+# 4. Push to main -> CD-Dev runs.
+# 5. Tag a release v1.0.0 -> CD-Prod runs (after manual approval).
+```
+
+### Local container test
+
+```powershell
+./scripts/local-dev.ps1
+# or:  make docker-run
+```

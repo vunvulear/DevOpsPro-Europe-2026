@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  github-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: cl
+        run: |
+          prev=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$prev" ]; then
+            log=$(git log --pretty=format:'- %s (%h)' "${GITHUB_REF_NAME}")
+          else
+            log=$(git log --pretty=format:'- %s (%h)' "${prev}..${GITHUB_REF_NAME}")
+          fi
+          {
+            echo "changelog<<EOF"
+            echo "$log"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: |
+            ## Changes
+            ${{ steps.cl.outputs.changelog }}
+          generate_release_notes: false
+          draft: false
+          prerelease: false

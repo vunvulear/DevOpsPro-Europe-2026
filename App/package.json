@@ -3,11 +3,17 @@
   "version": "1.0.0",
   "description": "Simple API that returns today's sunset time in Brasov (local timezone)",
   "main": "server.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.19.2",
     "suncalc": "^1.9.0"
+  },
+  "optionalDependencies": {
+    "applicationinsights": "^2.9.5"
   }
 }

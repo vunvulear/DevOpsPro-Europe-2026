@@ -1,0 +1,42 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/App"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "app"]
+    groups:
+      runtime:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: "/App_Test"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "tests"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    labels: ["dependencies", "ci"]
+
+  - package-ecosystem: docker
+    directory: "/App"
+    schedule:
+      interval: weekly
+    labels: ["dependencies", "docker"]
+
+  - package-ecosystem: terraform
+    directory: "/infra/terraform/envs/dev"
+    schedule:
+      interval: weekly
+    labels: ["dependencies", "terraform"]
+
+  - package-ecosystem: terraform
+    directory: "/infra/terraform/envs/prod"
+    schedule:
+      interval: weekly
+    labels: ["dependencies", "terraform"]

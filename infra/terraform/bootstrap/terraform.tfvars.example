@@ -1,0 +1,4 @@
+project_name      = "sunsetapi"
+location          = "westeurope"
+github_repository = "vunvulear/DevOpsPro-Europe-2026"
+github_environments = ["dev", "prod"]

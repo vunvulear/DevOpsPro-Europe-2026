@@ -1,0 +1,6 @@
+resource_group_name  = "rg-sunsetapi-tfstate"
+storage_account_name = "stsunsetapitfXXXXX"
+container_name       = "tfstate"
+key                  = "envs/prod.tfstate"
+use_oidc             = true
+use_azuread_auth     = true

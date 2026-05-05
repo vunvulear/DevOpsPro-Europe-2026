@@ -7,3 +7,32 @@ npm-debug.log*
 
 # Prompts
 Prompts/
+
+# Test outputs
+App_Test/coverage/
+App_Test/reports/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+infra/terraform/bootstrap/terraform.tfvars
+infra/terraform/envs/*/backend.hcl
+
+# Editor
+.vscode/
+.idea/
+
+# Local secrets
+.env
+.env.*
