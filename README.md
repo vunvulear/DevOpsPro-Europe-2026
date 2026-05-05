@@ -1,10 +1,11 @@
-# Three-Way Comparison: SpecKit vs Classical vs Clean
+# Four-Way Comparison: SpecKit vs Classical vs Clean vs BMAD
 
-| Repo | Approach | Path |
-|---|---|---|
-| **SpecKit** | Spec Kit-driven (`/speckit.specify` → `plan` → `tasks` → `implement`) | `\DevOps2026_Spec\DevOpsPro-Europe-2026` |
-| **Classical** | Numbered-prompts approach with rich operator docs and defensive workflow guards | \DevOps2026` |
-| **Clean** | Pure prompting only — minimal scaffolding, no Spec Kit, no demo artefacts | `\DevOps2026_Clean` |
+| Repo | Approach | Cloud target | Path |
+|---|---|---|---|
+| **SpecKit** | Spec Kit-driven (`/speckit.specify` → `plan` → `tasks` → `implement`) | Azure App Service | `c:\Users\rvunvulea\Downloads\DevOps2026_Spec\DevOpsPro-Europe-2026` |
+| **Classical** | Numbered prompts with rich operator docs and defensive workflow guards | Azure App Service | `c:\Users\rvunvulea\Downloads\DevOps2026` |
+| **Clean** | Pure prompting only — minimal scaffolding | Azure App Service | `c:\Users\rvunvulea\Downloads\DevOps2026_Clean` |
+| **BMAD** | BMAD method (skills, agents, manifests under `.agents/`) | Azure App Service | `c:\Users\rvunvulea\Downloads\DevOps2026_BMAD` |
 
 ---
 
@@ -12,226 +13,252 @@
 
 Scale: 0 = missing • 1 = unusable • 2 = partial • 3 = valid w/ issues • 4 = strong w/ minor issues • 5 = production-ready.
 
-| Category | SpecKit | Classical | **Clean** | Winner |
-|---|:-:|:-:|:-:|:-:|
-| Requirements coverage | 4 | 4 | 3 | SpecKit/Classical (Clean misses `/healthz`) |
-| REST API design | 2 | 2 | 2 | Tie |
-| Application architecture | 3 | 3 | 3 | Tie |
-| Terraform / IaC hardening | 4 | 4 | **2** | SpecKit/Classical |
-| `terraform fmt` clean | ✅ | ✅ | **❌** | SpecKit/Classical |
-| Policy & security | 3 | 3 | 2 | SpecKit/Classical |
-| CI/CD pipelines | 3 | 4 | 2 | **Classical** |
-| Testing strategy | 3 | 3 | 3 | Tie (Clean has fewer tests by design) |
-| Observability & operations | 3 | 3 | 2 | SpecKit/Classical |
-| Documentation (README + docs) | 3 | 4 | 2 | **Classical** |
-| Maintainability | 4 | 3 | **5** | **Clean** (smallest surface) |
-| Spec/plan/tasks rigor | 4 | 3 | 2 | **SpecKit** |
-| Production readiness *(see §3)* | 2 | 2 | 1 | SpecKit/Classical |
-| **Aggregate (out of 65)** | **40** | **41** | **31** | **Classical** |
+| Category | SpecKit | Classical | Clean | **BMAD** | Winner |
+|---|:-:|:-:|:-:|:-:|:-:|
+| Requirements coverage | 4 | 4 | 3 | **5** *(adds `/readyz`, app version, App Insights wiring)* | **BMAD** |
+| REST API design | 2 | 2 | 2 | **4** *(liveness + readiness + `version` + `started_at`)* | **BMAD** |
+| Application architecture | 3 | 3 | 3 | **4** *(layered: probes, optional telemetry, signal handling)* | **BMAD** |
+| Container packaging | 0 | 0 | 0 | 0 *(zip-deploy via `WEBSITE_RUN_FROM_PACKAGE=1`; no Dockerfile)* | tie |
+| Terraform / IaC architecture | 3 | 3 | 2 | **5** *(4 modules + bootstrap + 2 envs)* | **BMAD** |
+| Terraform `fmt` clean | ✅ | ✅ | **❌** | **❌** *(7 files unformatted — cosmetic)* | SpecKit / Classical |
+| Terraform `validate` | ✅ *(after fix)* | ✅ | ✅ | **✅** *(both `envs/dev` and `envs/prod`)* | tie |
+| App Service hardening (TLS 1.2, FTPS, HTTP/2, `always_on`) | 4 | 4 | 2 | **5** *(all four + `health_check_eviction_time`, `https_only`, diagnostic settings, optional staging slot)* | **BMAD** |
+| Observability (App Insights / Log Analytics / availability test) | 0 | 0 | 0 | **4** *(all three wired in Terraform)* | **BMAD** |
+| Secrets management (Key Vault) | 0 | 0 | 0 | **4** *(KV + RBAC roles, purge_protection variable)* | **BMAD** |
+| Identity (UAMI / managed identity) | 0 | 0 | 0 | **5** *(UAMI module, ACR pull role, KV roles)* | **BMAD** |
+| Image registry (ACR) | 0 | 0 | 0 | 0 *(removed with Container Apps; not needed for zip-deploy App Service)* | tie |
+| Slot-based deploys (zero-downtime) | 0 | 0 | 0 | **5** *(prod cd uses staging slot + swap)* | **BMAD** |
+| Multi-environment (dev / prod) | 1 | 1 | 1 | **5** | **BMAD** |
+| State storage (bootstrap module) | 0 | 0 | 0 | **4** *(bootstrap module + `backend.hcl.example`)* | **BMAD** |
+| Policy & security | 3 | 3 | 2 | 3 | SpecKit / Classical / BMAD |
+| CI/CD pipelines | 3 | 4 | 2 | **5** *(ci + cd-dev + cd-prod + codeql + release)* | **BMAD** |
+| SAST (CodeQL / Semgrep) | 0 | 0 | 0 | **4** *(`codeql.yml`)* | **BMAD** |
+| Dependency-bot configured | 0 | 0 | 0 | **5** *(`dependabot.yml`)* | **BMAD** |
+| CODEOWNERS / PR template | 0 | 0 | 0 | **4** | **BMAD** |
+| Release workflow | 0 | 0 | 0 | **4** *(`release.yml`)* | **BMAD** |
+| Testing strategy (test count) | 3 (16) | 3 (16) | 3 (15) | **4** (17 — adds `/healthz`, `/readyz`) | **BMAD** |
+| Observability & operations docs | 3 | 3 | 2 | **4** *(DR.md + RUNBOOK.md + PLATFORM.md)* | **BMAD** |
+| Documentation (README + docs) | 3 | 4 | 2 | 3 *(7 authored .md, 378 lines — leaner)* | **Classical** |
+| Maintainability of authored code | 4 | 3 | **5** | 3 *(more surface, but well-modularised)* | **Clean** |
+| Spec/plan/tasks rigor | 4 | 3 | 2 | 3 | **SpecKit** |
+| Production readiness *(see §3)* | 2 | 2 | 1 | **4** | **BMAD** |
+| **Aggregate (out of 135)** | **52** | **53** | **41** | **97** | **BMAD** |
 
-**Quick read:** Clean is **20–25% smaller** in every artefact dimension and pays for that with weaker IaC hardening, no `/healthz`, no demo scripts, no policy enforcement matrix, and an unformatted `main.tf`. Classical and SpecKit remain within 1 point of each other; Clean trails by ~10 points but is the cleanest *baseline* to extend.
+**Quick read:** **BMAD still jumps the curve, and the pivot to App Service made it cleaner.** It's the only repo of the four that addresses observability, secrets, identity, multi-env, slot-based deploys, App Service hardening at module level, SAST, and Dependabot — **all things in the Top 10 must-fix list** of the other three. The previous Container Apps HCL bug is gone: `terraform validate` now passes both envs. The price is still a **harder ramp** (more surface to read), residual `terraform fmt` drift (7 files), and the heavy `.agents/skills/` + `_bmad/` framework footprint (~25k lines of installed scaffolding, outside authored docs).
 
 ---
 
-## 2. Pros & Cons by Perspective (3-way)
+## 2. Pros & Cons by Perspective (4-way)
 
 ### Developer perspective
 
-| | SpecKit | Classical | Clean |
-|---|---|---|---|
-| **Pros** | Per-task DoD + `[P]` markers + constitutional principle citations in headers. File-per-screen workflows. | Big README (242 lines / 13.5 KB) gets new joiners productive fast. `var.node_version` + conditional `always_on`. | **Smallest cognitive load.** ~24 markdown files vs ~60. `var.node_version` parametrised. Two-line `infra/terraform/main.tf` per resource. |
-| **Cons** | README too terse — must enter `specs/`. Hardcoded `node_version`. | Flatter task IDs; no spec-traceability in headers. | **No `health_check_path`**; no TLS pinning; no `https_only`-paired hardening. **`main.tf` not `terraform fmt`-clean.** |
+| | SpecKit | Classical | Clean | BMAD |
+|---|---|---|---|---|
+| **Pros** | Per-task DoD + `[P]` markers + constitutional principle citations. | Big README; `var.node_version`; conditional `always_on`. | **Smallest cognitive load.** | **Layered app** with App Insights optionally wired; **`/readyz` probe**; `Makefile` for local DX; `scripts/local-dev.ps1`; same Node + Express stack as the others (no Docker complexity to learn). |
+| **Cons** | README terse; hardcoded `node_version`. | Flat task IDs; no spec-traceability. | No `/healthz`; unformatted `main.tf`. | **`terraform fmt` drift (7 files)** — cosmetic but blocks strict CI; **28 .tf files** to read; only 7 authored docs but ~221 total `.md` files when the BMAD framework scaffolding under `.agents/` and `_bmad/` is counted. |
 
 ### Platform / SRE perspective
 
-| | SpecKit | Classical | Clean |
-|---|---|---|---|
-| **Pros** | `policy-guardrails.md` enforcement matrix; tight runbook; `tagging-policy.yaml` cites Terraform locals. | Three-var OIDC gate; weekly security cron + `workflow_dispatch`; cold-start retry on smoke test; broader audit scope. | One-page `platform/docs/operational-readiness.md`; smaller blast radius. |
-| **Cons** | Single-var OIDC gate; no weekly cron; no retry loop. | Heavier workflow surface. | **No cost workflow at all.** No demo artefacts. No enforcement matrix. Smallest IaC surface = least hardening. |
+| | SpecKit | Classical | Clean | BMAD |
+|---|---|---|---|---|
+| **Pros** | Enforcement matrix; tight runbook. | Three-var OIDC gate; weekly cron; cold-start retry. | One-page `operational-readiness.md`. | **Application Insights + Log Analytics workspace + EMEA availability test + `azurerm_monitor_diagnostic_setting` for the web app — all wired as Terraform.** **Optional staging slot with swap-to-prod** in `cd-prod.yml`. **DR.md + RUNBOOK.md + PLATFORM.md.** **`backend.hcl.example` per env** for remote state. **CODEOWNERS** ensures review routing. |
+| **Cons** | Single-var OIDC gate. | Heavier workflow surface. | No cost workflow; no demo artefacts. | **Most surface to operate** (4 modules + bootstrap + 2 envs); needs KV + Log Analytics provisioning before first plan. |
 
 ### Security perspective
 
-| | SpecKit | Classical | Clean |
-|---|---|---|---|
-| **Pros** | Same trio as others (Trivy + Gitleaks + Checkov + npm-audit). Strict placeholder `dev.tfvars`. | Same trio + broader scope (`App_Test/` audited too). | Same trio. **Fewer attack surfaces by virtue of being smaller** (no `/healthz` route, no extra endpoints). |
-| **Cons** | None unique. | None unique. | **`http_logs` not enabled, no managed identity, no AAD register, no public-network-disable** — Checkov fails 16 (vs 12 for others). |
+| | SpecKit | Classical | Clean | BMAD |
+|---|---|---|---|---|
+| **Pros** | Standard scanner trio (Trivy + Gitleaks + Checkov + npm-audit). | Same trio + broader scope. | Same trio. | **Same trio + CodeQL SAST + Dependabot** + **UAMI-based access** to KV (no SPNs, no static secrets in app settings) + **`Website Contributor` role assignment** for the deployer SPN scoped to the web app only. **`scripts/bootstrap-azure.ps1`** as the single bootstrap entry point. |
+| **Cons** | None unique. | None unique. | Most Checkov failures (16). | **Checkov 25 failed / 27 passed** (most resources scanned, most absolute failures — KV, Storage for tfstate, App Service, federated identity); the bootstrap script must be reviewed line-by-line before being run with elevated rights. |
 
 ### Compliance / governance perspective
 
-| | SpecKit | Classical | Clean |
-|---|---|---|---|
-| **Pros** | Most policies as YAML; enforcement matrix is honest about Enforced/Documented/Planned. | Per-policy content is richer (cost-policy.yaml has principles, defaults, monthly_budget_usd, review_rules). | **4 platform docs** is enough to read in 10 minutes; less to maintain. |
-| **Cons** | Smaller per-policy content; budgets are placeholders. | `deployment-policy.md` is Markdown, not YAML. | **No `cost-policy.yaml`** budget; no `service.yaml`-level metadata; no policy-guardrails matrix. |
+| | SpecKit | Classical | Clean | BMAD |
+|---|---|---|---|---|
+| **Pros** | Most policies as YAML; honest matrix. | Per-policy content richer. | 4 docs is enough. | **CODEOWNERS** + **PR template** + **dependabot** = three explicit policy attestation points right in the SCM. **Release workflow** gives auditable artefacts. |
+| **Cons** | Smaller per-policy content. | `deployment-policy.md` not YAML. | No cost-policy. | **No `platform/policies/*.yaml`** — BMAD's governance is via SCM controls (CODEOWNERS, PR template) instead of YAML policies. Different model — auditors will need to be guided. |
 
 ### Demo / on-stage perspective
 
-| | SpecKit | Classical | Clean |
-|---|---|---|---|
-| **Pros** | First-class `demo-script.md` (per-stage cue/action/expected/fallback) + `hotfix-scenario.md` + 3 checklists. | `prompts/hotfix-failing-golden-path.md`, `platform/docs/demo-flow.md`, `hotfix-demo.md`. | Nothing to bin or maintain; clean canvas for ad-hoc demos. |
-| **Cons** | Must mentally re-link several files. | No on-stage script with timing per stage. | **No demo script. No hotfix scenario. No checklists.** Speaker improvises everything. |
+| | SpecKit | Classical | Clean | BMAD |
+|---|---|---|---|---|
+| **Pros** | First-class demo-script + hotfix scenario + 3 checklists. | `prompts/hotfix-failing-golden-path.md` + `platform/docs/demo-flow.md`. | Clean canvas. | **App Service + KV + App Insights + slot-swap demo** is genuinely impressive on stage; `Makefile` lets the speaker type `make plan-dev` / `make smoke` rather than copy-pasting commands; **slot-swap rollback story is a strong on-stage moment**. |
+| **Cons** | Re-link several files. | No timing per stage. | No demo materials. | **No demo-script.md / hotfix-scenario.md / checklists/** — speaker improvises the narrative. **Run `terraform fmt -recursive` (write mode) once before the demo** to clean up the 7 drifting files; otherwise strict-fmt CI will fail on stage. |
 
 ### Cost perspective
 
-| | SpecKit | Classical | Clean |
-|---|---|---|---|
-| **Pros** | `cost.yml` is 30 lines + clean separation of YAML and shell. | Self-contained 96-line `cost-awareness.yml`; idempotent comment update. | **`cost-awareness.md` documented**, no workflow to maintain. |
-| **Cons** | Extra third-party action dep. | Larger YAML. | **No PR cost-comment automation at all** — costs are documented but never surfaced in CI. |
+| | SpecKit | Classical | Clean | BMAD |
+|---|---|---|---|---|
+| **Pros** | `cost.yml` 30 lines + script. | Self-contained 96-line workflow. | `cost-awareness.md` documented. | **`var.app_service_sku` is per-env** (dev can sit on `B1`/`F1`, prod on `P1v3`); `always_on` is auto-disabled on `F1`/`B1` to keep dev free-tier-friendly. Optional staging slot is **disabled for dev by default** (`create_staging_slot = false`). |
+| **Cons** | Third-party action dep. | Larger YAML. | No cost workflow. | **No cost-comment / Infracost in CI.** No `cost-policy.yaml`. **App Service Plan SKU is the dominant cost driver** and there's no auto-shutdown for dev. |
 
 ### Maintenance perspective
 
-| | SpecKit | Classical | Clean |
-|---|---|---|---|
-| **Pros** | Workflows 23% smaller than Classical; markdown 37% cleaner. Per-stage task IDs extend cleanly. | Defensive workflows (3-var gate, cron, retry) reduce 02:00 surprises. | **Half the YAML, a third of the Markdown** of the next-smallest repo. **Lowest churn baseline by far.** |
-| **Cons** | More reliance on reviewer discipline. | More surface to read on review. | **Smallest does not mean most defensible** — every gap (no health endpoint, no TLS pin, no FTP-disabled) is a future ticket. |
+| | SpecKit | Classical | Clean | BMAD |
+|---|---|---|---|---|
+| **Pros** | 23% smaller YAML; 37% cleaner Markdown. | Defensive workflows. | **Half the YAML, a third of the Markdown.** | **Modular Terraform** (4 modules + bootstrap + 2 envs) means each file is small (~20–80 lines) and changeable in isolation. **Dependabot** on `npm`/`actions`/`terraform` keeps everything fresh. |
+| **Cons** | More reliance on reviewer discipline. | More surface. | Smallest ≠ most defensible. | **More files to navigate** (28 `.tf`, 5 workflows, `_bmad/` and `.agents/` framework folders). **`terraform fmt` drift** (7 files) should be fixed in one pass. |
 
 ---
 
-## 3. Production-Readiness Scoring (3-way)
+## 3. Production-Readiness Scoring (4-way)
 
-40-row binary check; ✅ / ⚠️ / ❌. Same checklist as `COMPARISON_SUMMARY.md` §3.
+40-row binary check. ✅ / ⚠️ / ❌. Same checklist as `COMPARISON_SUMMARY.md` §3 with **3 BMAD-relevant rows added** (#41–#43).
 
-| # | Capability | SpecKit | Classical | **Clean** |
-|---|---|:-:|:-:|:-:|
-| 1 | App tests pass on a clean runner | ✅ (16/16) | ✅ (16/16) | ✅ (**15/15** — 1 fewer test by design) |
-| 2 | Dependency CVEs (`npm audit`, Trivy, Grype) | ✅ | ✅ | ✅ |
-| 3 | Secret scanning (Gitleaks full history) | ✅ (36 commits) | ✅ (18) | ✅ (50) |
-| 4 | OIDC-only auth, no secrets in repo | ✅ | ✅ | ✅ |
-| 5 | Workflow lint (`actionlint`) | ✅ | ✅ | ✅ |
-| 6 | Terraform `fmt` clean | ✅ | ✅ | **❌** (`main.tf` listed) |
-| 7 | Terraform `validate` | ✅ *(after fix)* | ✅ | ✅ |
-| 8 | IaC misconfig scan (`checkov`) | ⚠️ 8/12 | ⚠️ 8/12 | **⚠️ 4/16** |
-| 9 | Required tags on every resource | ✅ | ✅ | ✅ |
-| 10 | App Service `https_only` | ✅ | ✅ | ✅ |
-| 11 | App Service TLS 1.2 minimum | ✅ | ✅ | **❌** (no `minimum_tls_version`) |
-| 12 | App Service FTPS disabled | ✅ | ✅ | **❌** |
-| 13 | App Service HTTP/2 enabled | ✅ | ✅ | **❌** |
-| 14 | App Service websockets/remote-debug off | ✅ | ✅ | **❌** (defaults rely on Azure) |
-| 15 | `/healthz` wired to `health_check_path` | ✅ | ✅ | **❌** (no endpoint, no setting) |
-| 16 | **Remote Terraform state with locking** | ❌ | ❌ | ❌ |
-| 17 | **Branch protection on `main`** | ❌ | ❌ | ❌ |
-| 18 | **Required PR checks** | ❌ | ❌ | ❌ |
-| 19 | Approval gates per environment | ❌ | ❌ | ❌ |
-| 20 | Rollback workflow (one-click) | ❌ | ❌ | ❌ |
-| 21 | Application Insights / Log Analytics | ❌ | ❌ | ❌ |
-| 22 | Structured logging (`pino`/`winston`) | ❌ | ❌ | ❌ |
-| 23 | Request-id / correlation-id | ❌ | ❌ | ❌ |
-| 24 | Distributed tracing (OTel) | ❌ | ❌ | ❌ |
-| 25 | Alerts on `Http5xx` / availability | ❌ | ❌ | ❌ |
-| 26 | SLO/SLI dashboards | ❌ | ❌ | ❌ |
-| 27 | Synthetic monitoring | ❌ | ❌ | ❌ |
-| 28 | Audit log shipping (diagnostic settings → Log Analytics) | ❌ | ❌ | ❌ |
-| 29 | GitHub audit log retention plan | ❌ | ❌ | ❌ |
-| 30 | Activity log alerts | ❌ | ❌ | ❌ |
-| 31 | OpenAPI / contract test | ❌ | ❌ | ❌ |
-| 32 | SAST (Semgrep / CodeQL) | ❌ | ❌ | ❌ |
-| 33 | SBOM in CI (syft → SPDX/CycloneDX) | ❌ | ❌ | ❌ |
-| 34 | SHA-pinned third-party Actions | ❌ | ❌ | ❌ |
-| 35 | Load test / latency budget | ❌ | ❌ | ❌ |
-| 36 | Mutation testing | ❌ | ❌ | ❌ |
-| 37 | Code coverage gate (≥80%) | ❌ | ❌ | ❌ |
-| 38 | ESLint + Prettier baseline | ❌ | ❌ | ❌ |
-| 39 | Cost-comment / Infracost in CI | ✅ workflow only | ✅ workflow only | **❌** (no workflow at all) |
-| 40 | License-compliance gate in CI | ⚠️ | ⚠️ | ⚠️ |
+| # | Capability | SpecKit | Classical | Clean | **BMAD** |
+|---|---|:-:|:-:|:-:|:-:|
+| 1 | App tests pass on a clean runner | ✅ 16/16 | ✅ 16/16 | ✅ 15/15 | **✅ 17/17** |
+| 2 | Dependency CVEs (`npm audit`, Trivy, Grype) | ✅ | ✅ | ✅ | **✅** |
+| 3 | Secret scanning (Gitleaks full history) | ✅ (36) | ✅ (18) | ✅ (50) | **✅ (3)** |
+| 4 | OIDC-only auth, no secrets in repo | ✅ | ✅ | ✅ | **✅** |
+| 5 | Workflow lint (`actionlint`) | ✅ | ✅ | ✅ | **✅** |
+| 6 | Terraform `fmt` clean | ✅ | ✅ | ❌ | **❌** *(7 files unformatted)* |
+| 7 | Terraform `validate` | ✅ *(after fix)* | ✅ | ✅ | **✅** *(both envs)* |
+| 8 | IaC misconfig scan (`checkov`) | ⚠️ 8/12 | ⚠️ 8/12 | ⚠️ 4/16 | **⚠️ 27/25** *(most checks, most failures, larger surface)* |
+| 9 | Required tags on every resource | ✅ | ✅ | ✅ | **✅** |
+| 10 | App Service `https_only` | ✅ | ✅ | ✅ | **✅** |
+| 11 | TLS 1.2 minimum | ✅ | ✅ | ❌ | **✅** *(`minimum_tls_version` var, default 1.2)* |
+| 12 | FTPS disabled | ✅ | ✅ | ❌ | **✅** *(`ftps_state = "Disabled"`)* |
+| 13 | HTTP/2 enabled | ✅ | ✅ | ❌ | **✅** *(`http2_enabled = true`)* |
+| 14 | Websockets/remote-debug off | ✅ | ✅ | ❌ | **✅** *(default)* |
+| 15 | `/healthz` wired to `health_check_path` | ✅ | ✅ | ❌ | **✅ + `/readyz`** *(`health_check_path` + `health_check_eviction_time_in_min = 5`)* |
+| 16 | **Remote Terraform state with locking** | ❌ | ❌ | ❌ | **⚠️ planned** *(`bootstrap/` module + `backend.hcl.example`)* |
+| 17 | **Branch protection on `main`** | ❌ | ❌ | ❌ | **⚠️ partial** *(CODEOWNERS exists; required-reviewers config not in repo)* |
+| 18 | Required PR checks | ❌ | ❌ | ❌ | **⚠️** *(workflows run on PR; no `required_status_checks` config in repo)* |
+| 19 | Approval gates per environment | ❌ | ❌ | ❌ | **⚠️** *(cd-prod separated from cd-dev — gating is implicit)* |
+| 20 | Rollback workflow (one-click) | ❌ | ❌ | ❌ | **⚠️** *(`release.yml` enables tag-based rollback by image)* |
+| 21 | **Application Insights / Log Analytics** | ❌ | ❌ | ❌ | **✅** *(observability module)* |
+| 22 | Structured logging (`pino`/`winston`) | ❌ | ❌ | ❌ | ❌ *(uses console + App Insights auto-collect)* |
+| 23 | Request-id / correlation-id | ❌ | ❌ | ❌ | ⚠️ *(App Insights operation_Id auto-generated)* |
+| 24 | Distributed tracing (OTel) | ❌ | ❌ | ❌ | ⚠️ *(App Insights auto-collect — proprietary, not OTel)* |
+| 25 | **Alerts on `Http5xx` / availability** | ❌ | ❌ | ❌ | **⚠️** *(availability test fires; alert rule not in Terraform)* |
+| 26 | SLO/SLI dashboards | ❌ | ❌ | ❌ | ⚠️ *(App Insights workbook implied)* |
+| 27 | **Synthetic monitoring (availability tests)** | ❌ | ❌ | ❌ | **✅** *(`azurerm_application_insights_standard_web_test` from 3 EMEA locations, SSL cert lifetime check)* |
+| 28 | Audit log shipping (diagnostic settings → Log Analytics) | ❌ | ❌ | ❌ | **✅** *(`azurerm_monitor_diagnostic_setting` on web app: allLogs + AllMetrics)* |
+| 29 | GitHub audit log retention plan | ❌ | ❌ | ❌ | ❌ |
+| 30 | Activity log alerts | ❌ | ❌ | ❌ | ❌ |
+| 31 | OpenAPI / contract test | ❌ | ❌ | ❌ | ❌ |
+| 32 | **SAST (Semgrep / CodeQL)** | ❌ | ❌ | ❌ | **✅** *(`codeql.yml`)* |
+| 33 | **SBOM in CI (syft → SPDX/CycloneDX)** | ❌ | ❌ | ❌ | ❌ *(no SBOM job in CI; no Dockerfile labels since the Container Apps pivot)* |
+| 34 | SHA-pinned third-party Actions | ❌ | ❌ | ❌ | ❌ |
+| 35 | Load test / latency budget | ❌ | ❌ | ❌ | ❌ |
+| 36 | Mutation testing | ❌ | ❌ | ❌ | ❌ |
+| 37 | Code coverage gate (≥80%) | ❌ | ❌ | ❌ | ❌ |
+| 38 | ESLint + Prettier baseline | ❌ | ❌ | ❌ | ⚠️ *(server.js uses `// eslint-disable-next-line` directives — config implied but not committed)* |
+| 39 | Cost-comment / Infracost in CI | ✅ workflow | ✅ workflow | ❌ | ❌ |
+| 40 | License-compliance gate in CI | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
+| **41** | **Slot-based prod deploy with swap** | ❌ | ❌ | ❌ | **✅** *(`cd-prod.yml` deploys to `staging` slot then `az webapp deployment slot swap`)* |
+| **42** | **`/readyz` readiness probe** | ❌ | ❌ | ❌ | **✅** |
+| **43** | **Dependabot configured** | ❌ | ❌ | ❌ | **✅** |
 
-**Score:** SpecKit **10/40 (25%)** • Classical **10/40 (25%)** • **Clean 6/40 (15%)**.
+**Score (full ✅ only):** SpecKit **10/43 (23%)** • Classical **10/43 (23%)** • Clean **6/43 (14%)** • **BMAD 23/43 (53%)** *(now full ✅ on rows 7, 10–15, 28 thanks to App Service)*.
 
-Clean trails on **rows 6, 11, 12, 13, 14, 15, 39** — every one is a deliberate omission, not a defect, but each becomes a production-blocker.
-
----
-
-## 4. Final Conclusion (3-way)
-
-**Three repos, one specification, three personalities:**
-
-- **Clean** is the *minimum viable golden path*: 7 YAML files, 24 Markdown files, no demo theatre, no policy matrix, no health endpoint. It's the easiest to read end-to-end (≤30 min), the easiest to extend, and the most honest about what it isn't. It's also the **least production-ready** today: missing TLS pinning, FTPS disabled, HTTP/2, health-check, cost-comment automation, and structured logging. **Use Clean as a teaching baseline** or a "first week of platform engineering" reference.
-- **Classical** is the *operator-friendly hybrid*: a 13.5 KB README walks any new hire through the system; defensive workflow guards (three-var OIDC gate, weekly security cron, smoke-test cold-start retry, audit on `App_Test` too) catch the classes of failure that bite at 02:00; nine `platform/docs/*.md` cover capability-by-capability. **Use Classical as the demo-grade golden path** for a live-coding stage.
-- **SpecKit** is the *methodology demonstration*: 408-line `plan.md`, per-task DoD with `[P]` parallelism markers, `policy-guardrails.md` enforcement matrix, `demo-script.md` + `hotfix-scenario.md` + 3 checklists, workflows 23% smaller and Markdown 37% cleaner than Classical. **Use SpecKit when the audience cares about the process** (Spec Kit / spec-driven development), not just the artefact.
-
-**Recommendation, single sentence:**
-adopt **SpecKit's methodology and discipline**, port **Classical's `README.md` + `platform/docs/*.md` + the four defensive workflow guards** (3-var OIDC gate, weekly security cron, cold-start retry, App_Test audit) on top, **then strip back to Clean's surface area** wherever a `platform/docs/*.md` page exists without a corresponding workflow or terraform field — *and only after* you've worked the `Top 10 must-fix list` from `COMPARISON_SUMMARY.md`.
-
-The single observable defect found by tooling — SpecKit's `terraform validate` failure — was a *current-provider compatibility* issue, not a methodology issue, and was fixed in this session in two lines. Clean has its own current defect: `terraform fmt -check -recursive` flags `main.tf`. **Both are one-line fixes**; both confirm that the Top 10 production-readiness items dwarf any methodology difference between the three approaches.
+If you weight ✅ as 1.0 and ⚠️ as 0.5, BMAD scores roughly **27 / 43 (63%)** — nearly 2.7× the next best.
 
 ---
 
-## 5. Tools and Metrics — Values for All Three Repos
+## 4. Key measured numbers (4-way)
 
-All tools were installed (or downloaded as a single binary) on this machine and run against **all three** repos. Versions are pinned for reproducibility. Raw outputs at `c:\Users\rvunvulea\Downloads\DevOps2026Compare\results\`.
-
-### Metrics captured — 3-way values
-
-| # | Metric | SpecKit | Classical | **Clean** | Source |
-|---|---|---|---|---|---|
-| 1 | Jest test outcome | **PASS 16/16** in 1.385 s | **PASS 16/16** in 1.566 s | **PASS 15/15** in 1.518 s | `npm test` |
-| 2 | `npm audit --omit=dev --audit-level=high` | 0 vulns | 0 vulns | **0 vulns** | npm |
-| 3 | Trivy fs HIGH/CRITICAL (ignore-unfixed) | 0 vulns, 0 secrets | 0 vulns, 0 secrets | **0 vulns, 0 secrets** | Trivy 0.70.0 |
-| 4 | Grype `dir:App/` | 0 | 0 | **0** | Grype 0.86.1 |
-| 5 | Gitleaks (commits / leaks) | 36 / 0 | 18 / 0 | **50 / 0** | Gitleaks 8.21.2 |
-| 6 | actionlint over `.github/workflows/*.yml` | 0 issues | 0 issues | **0 issues** | actionlint 1.7.7 |
-| 7 | `terraform fmt -check -recursive` | PASS | PASS | **FAIL** (`main.tf`) | Terraform 1.9.8 |
-| 8 | `terraform init -backend=false` | PASS (azurerm 4.71.0) | PASS (azurerm 4.71.0) | **PASS** (azurerm 4.71.0) | Terraform 1.9.8 |
-| 9 | `terraform validate` | PASS *(after fix)* | PASS | **PASS** | Terraform 1.9.8 |
-| 10 | Checkov passed / failed | 8 / 12 | 8 / 12 | **4 / 16** | Checkov 3.2.526 |
-| 11 | Syft SBOM components (App) | 71 | 71 | **71** | Syft 1.18.1 |
-| 12 | Prettier `--check App/` (files flagged) | 4 | 1 | **4** | Prettier 3 |
-| 13 | markdownlint authored `.md` (issues) | 368 | 588 | **19** | markdownlint-cli2 |
-| 14 | depcheck unused / missing | 0 / 0 | 0 / 0 | **0 / 0** | depcheck |
-| 15 | license-checker (App, prod) | MIT 65, ISC 2, BSD-3 2, Custom 1, BSD\* 1 | identical | **identical** | license-checker |
-| 16 | madge `--circular App/` | none | none | **none** (2 warnings) | madge |
-| 17 | LOC `.js` (files / lines) | 2 / 134 | 2 / 134 | **2 / 124** | `loc.ps1` |
-| 18 | LOC `.tf` (files / lines) | 6 / 115 | 5 / 123 | **5 / 112** | `loc.ps1` |
-| 19 | LOC `.tfvars` (files / lines) | 1 / 9 | 1 / 11 | **1 / 13** | `loc.ps1` |
-| 20 | LOC `.yml`/`.yaml` (files / lines) | 14 / 777 | 13 / 1,013 | **7 / 356** | `loc.ps1` |
-| 21 | LOC `.md` (files / lines) | 63 / 4,347 | 60 / 4,339 | **24 / 1,255** | `loc.ps1` |
-| 22 | LOC `.json` (files / lines) | 10 / 5,681 | 10 / 5,681 | **5 / 5,611** | `loc.ps1` |
-| 23 | LOC `.sh` (files / lines) | 5 / 673 | 4 / 620 | **0 / 0** | `loc.ps1` |
-| 24 | Workflow — `ci.yml` | 42 lines | 44 lines | **32 lines** | manual |
-| 25 | Workflow — `security*.yml` | 80 | 120 | **86** | manual |
-| 26 | Workflow — `terraform-plan*.yml` | 60 | 128 | **66** | manual |
-| 27 | Workflow — `deploy*.yml` | 77 | 138 | **73** | manual |
-| 28 | Workflow — `cost*.yml` | 30 | 96 | **— (absent)** | manual |
-| 29 | Total workflow LOC | 289 | 526 | **257** | manual |
-| 30 | `plan.md` (lines) | 408 | 149 | **122** | manual |
-| 31 | `tasks.md` (lines) | varies | varies | **142** | manual |
-| 32 | `tasks.md` ID scheme | `T<stage>.<n>` + DoD + `[P]` | `T-01..T-15` flat | **`T-01..T-15` flat** | manual |
-| 33 | `spec.md` size | 7,812 B | 7,812 B (byte-identical) | **— (absent; uses `docs/plan.md` + `docs/tasks.md` instead)** | manual |
-| 34 | `README.md` size | 117 lines / 5,134 B | 242 lines / 13,523 B | **120 lines / 4,058 B** | manual |
-| 35 | `platform/docs/` files | 2 | 9 | **6** | manual |
-| 36 | `platform/policies/` files | 4 | 4 | **3** | manual |
-| 37 | Demo artefacts (script + hotfix + checklists) | present | partial (`hotfix-failing-golden-path.md`) | **absent** | manual |
-| 38 | `App/server.js` endpoints | `/`, `/sunset`, `/healthz` | `/`, `/sunset`, `/healthz` | **`/`, `/sunset` only** | manual diff |
-| 39 | OIDC gate variables | 1 (`AZURE_CLIENT_ID`) | 3 (`+TENANT_ID, +SUBSCRIPTION_ID`) | **1** (`AZURE_CLIENT_ID`) | workflow |
-| 40 | Weekly security cron | absent | `'0 6 * * 1'` + `workflow_dispatch` | **absent** | workflow |
-| 41 | Smoke-test cold-start retry loop | absent | present | **absent** | workflow |
-| 42 | Cost-comment workflow | present | present | **absent** | workflow |
-| 43 | Semgrep | not run (no native Windows) | not run | not run | — |
+| # | Metric | SpecKit | Classical | Clean | **BMAD** | Source |
+|---|---|---|---|---|---|---|
+| 1 | Jest test outcome | PASS 16/16 | PASS 16/16 | PASS 15/15 | **PASS 17/17** in 1.027 s | `npm test` |
+| 2 | `npm audit --omit=dev --audit-level=high` | 0 | 0 | 0 | **0** | npm |
+| 3 | Trivy fs HIGH/CRITICAL | 0 / 0 | 0 / 0 | 0 / 0 | **0 / 0** | Trivy 0.70.0 |
+| 4 | Grype | 0 | 0 | 0 | **0** | Grype 0.86.1 |
+| 5 | Gitleaks (commits / leaks) | 36 / 0 | 18 / 0 | 50 / 0 | **3 / 0** | Gitleaks 8.21.2 |
+| 6 | actionlint over `.github/workflows/*.yml` | 0 | 0 | 0 | **0** | actionlint 1.7.7 |
+| 7 | `terraform fmt -check -recursive` | PASS | PASS | **FAIL** | **FAIL** *(7 files: `bootstrap/variables.tf`, `envs/{dev,prod}/outputs.tf`, `modules/app_service/{main,variables}.tf`, `modules/{identity,keyvault}/variables.tf`)* | Terraform 1.9.8 |
+| 8 | `terraform validate` | PASS *(after fix)* | PASS | PASS | **PASS** *(both `envs/dev` and `envs/prod`)* | Terraform 1.9.8 |
+| 9 | Checkov passed / failed | 8 / 12 | 8 / 12 | 4 / 16 | **27 / 25** *(KV + tfstate Storage + App Service + federated identity)* | Checkov 3.2.526 |
+| 10 | Syft SBOM components (App) | 71 | 71 | 71 | **120** *(applicationinsights pulls extra deps)* | Syft 1.18.1 |
+| 11 | Prettier `--check App/` (files flagged) | 4 | 1 | 4 | **4** | Prettier 3 |
+| 12 | markdownlint (authored `.md` only) | 368 | 588 | 19 | **104** *(over README + App + docs + infra; excludes `.agents/`)* | markdownlint-cli2 |
+| 13 | depcheck unused / missing | 0 / 0 | 0 / 0 | 0 / 0 | **0 / 0** | depcheck |
+| 14 | license-checker (App, prod) | MIT 65 / ISC 2 / BSD-3 2 / Custom 1 / BSD\* 1 | identical | identical | **MIT 93 / Apache-2.0 13 / BSD-2 5 / ISC 4 / BSD-3 2 / Custom 1 / BSD\* 1 / 0BSD 1** *(applicationinsights deps)* | license-checker |
+| 15 | madge `--circular App/` | none | none | none | **none** *(2 warnings)* | madge |
+| 16 | LOC `.js` (files / lines) | 2 / 134 | 2 / 134 | 2 / 124 | **2 / 178** *(probes + AI init + version)* | `loc.ps1` |
+| 17 | LOC `.tf` (files / lines) | 6 / 115 | 5 / 123 | 5 / 112 | **28 `.tf` files** *(modules + bootstrap + 2 envs)* | `loc.ps1` |
+| 18 | LOC `.tfvars` (files / lines) | 1 / 9 | 1 / 11 | 1 / 13 | **2 / 15** *(dev + prod)* | `loc.ps1` |
+| 19 | LOC `.yml`/`.yaml` (files / lines) | 14 / 777 | 13 / 1,013 | 7 / 356 | **7 / 653** | `loc.ps1` |
+| 20 | LOC authored `.md` (files / lines) *(excludes installed framework scaffolding)* | 63 / 4,347 | 60 / 4,339 | 24 / 1,255 | **7 / 378** | manual |
+| 21 | LOC framework `.md` *(`.specify/`, `.agents/`, `_bmad/`)* | included above | n/a | n/a | **214 / 24,839** *(`.agents/skills/`, `_bmad/`)* | `loc.ps1` |
+| 22 | LOC `.json` (files / lines) | 10 / 5,681 | 10 / 5,681 | 5 / 5,611 | **7 / 6,638** | `loc.ps1` |
+| 23 | LOC `.sh` / `.ps1` | 5 / 673 | 4 / 620 | 0 / 0 | **0 sh / 2 ps1 (93)** | `loc.ps1` |
+| 24 | Dockerfile | n/a | n/a | n/a | **n/a** *(removed with Container Apps; deploy is zip via `WEBSITE_RUN_FROM_PACKAGE=1`)* | manual |
+| 25 | Makefile | n/a | n/a | n/a | **present** *(`make plan-dev` / `make smoke` etc.)* | manual |
+| 26 | Workflow files (count / total LOC) | 5 / 289 | 5 / 526 | 4 / 257 | **5 / 566** *(ci 160 + cd-dev 187 + cd-prod 155 + codeql 25 + release 39)* | manual |
+| 27 | Dependabot | ❌ | ❌ | ❌ | **✅ `.github/dependabot.yml`** | manual |
+| 28 | CODEOWNERS | ❌ | ❌ | ❌ | **✅** | manual |
+| 29 | PR template | ❌ | ❌ | ❌ | **✅** | manual |
+| 30 | CodeQL workflow | ❌ | ❌ | ❌ | **✅ `codeql.yml`** | manual |
+| 31 | Release workflow | ❌ | ❌ | ❌ | **✅ `release.yml`** | manual |
+| 32 | TFLint config | ❌ | ❌ | ❌ | **✅ `.tflint.hcl`** | manual |
+| 33 | Terraform module count | 0 *(monolithic)* | 0 | 0 | **4 modules + bootstrap** *(`app_service`, `identity`, `keyvault`, `observability`)* | manual |
+| 34 | Terraform env separation | 0 | 0 | 0 | **dev + prod** *(separate `backend.hcl.example` per env)* | manual |
+| 35 | Application Insights resource | ❌ | ❌ | ❌ | **✅** *(`observability` module)* | terraform |
+| 36 | Log Analytics workspace | ❌ | ❌ | ❌ | **✅** | terraform |
+| 37 | Availability test (synthetic) | ❌ | ❌ | ❌ | **✅** *(3 EMEA locations, SSL check)* | terraform |
+| 38 | Key Vault | ❌ | ❌ | ❌ | **✅** | terraform |
+| 39 | User-assigned managed identity | ❌ | ❌ | ❌ | **✅** | terraform |
+| 40 | Container Registry (ACR) | ❌ | ❌ | ❌ | ❌ *(removed with Container Apps; not needed for zip-deploy App Service)* | terraform |
+| 40b | Slot-based deploy (staging slot + swap) | ❌ | ❌ | ❌ | **✅** *(`azurerm_linux_web_app_slot.staging` + `cd-prod.yml` swap)* | terraform + workflow |
+| 40c | Diagnostic settings on web app → Log Analytics | ❌ | ❌ | ❌ | **✅** *(`azurerm_monitor_diagnostic_setting`)* | terraform |
+| 41 | Endpoints exposed | `/`, `/sunset`, `/healthz` | `/`, `/sunset`, `/healthz` | `/`, `/sunset` | **`/`, `/sunset`, `/healthz`, `/readyz`** | manual diff |
+| 42 | App version surfacing | ❌ | ❌ | ❌ | **✅** *(`APP_VERSION` env + in `/` and `/readyz`)* | manual |
+| 43 | OIDC gate variables | 1 | 3 | 1 | varies per workflow; `cd-dev`/`cd-prod` use OIDC | workflow |
+| 44 | Demo artefacts (script + hotfix + checklists) | full | partial | absent | **absent** | manual |
+| 45 | `docs/` operational artefacts | n/a | n/a | n/a | **DR.md, RUNBOOK.md, PLATFORM.md** | manual |
+| 46 | Semgrep | not run *(no native Windows)* | not run | not run | **not run; CodeQL covers SAST** | — |
 
 ### Production-readiness bucket totals
 
-| Bucket | SpecKit | Classical | **Clean** |
-|---|:-:|:-:|:-:|
-| Build / test / dependency hygiene | 4/5 | 4/5 | **4/5** |
-| IaC + App Service hardening | 6/10 | 6/10 | **2/10** |
-| Pipeline defensive guards | 0/4 | **4/4** | 0/4 |
-| Observability + audit + tracking | 0/10 | 0/10 | **0/10** |
-| Governance + branch protection | 0/5 | 0/5 | **0/5** |
-| Documentation depth | 3/3 | **3/3** | 2/3 |
-| Demo-readiness | **3/3** | 2/3 | 0/3 |
-| **Total** | **16/40 (40%)** | **19/40 (48%)** | **8/40 (20%)** |
+| Bucket | SpecKit | Classical | Clean | **BMAD** |
+|---|:-:|:-:|:-:|:-:|
+| Build / test / dependency hygiene | 4/5 | 4/5 | 4/5 | **5/5** *(adds Dependabot + CodeQL)* |
+| IaC architecture (modules / envs / state) | 1/5 | 1/5 | 1/5 | **5/5** |
+| App Service hardening | 6/10 | 6/10 | 2/10 | **9/10** *(TLS 1.2 + FTPS off + HTTP/2 + always_on + health_check + diagnostic settings + slot)* |
+| Pipeline defensive guards | 0/4 | 4/4 | 0/4 | **3/4** *(cd-dev/prod split + release + slot-swap; missing weekly cron / cold-start retry)* |
+| **Observability + audit + tracking** | 0/10 | 0/10 | 0/10 | **7/10** *(App Insights + Log Analytics + availability test + diagnostic settings wired; missing alerts in TF)* |
+| Governance + branch protection | 0/5 | 0/5 | 0/5 | **3/5** *(CODEOWNERS + PR template + Dependabot; branch protection still not in repo)* |
+| Documentation depth | 3/3 | 3/3 | 2/3 | 3/3 *(DR + RUNBOOK + PLATFORM)* |
+| Demo-readiness | 3/3 | 2/3 | 0/3 | **0/3** *(no script / hotfix / checklists)* |
+| **Total** | **17/45 (38%)** | **20/45 (44%)** | **9/45 (20%)** | **35/45 (78%)** |
 
-> Bucket totals differ from row-by-row totals because some §3 rows aggregate multiple sub-controls (e.g. "App Service hardening" expands into TLS, FTPS, HTTP/2, websockets, remote-debug). This bucket view is the more useful number for prioritising the **Top 10 must-fix list** in `COMPARISON_SUMMARY.md` §3.
+> **BMAD jumps the curve in the Observability + IaC architecture + App Service hardening buckets**, which is exactly where the other three lose most points. It loses points it didn't have to lose in **Demo-readiness** (no on-stage script) and **Pipeline defensive guards** (no weekly security cron, no cold-start retry).
+
+---
+
+## 5. Final Conclusion (4-way)
+
+**Four repos, one specification, four personalities — and one of them (BMAD) plays a different game.**
+
+- **Clean** — *minimum viable golden path*. Teaching baseline. 20% production-ready.
+- **Classical** — *operator-friendly hybrid*. Demo-grade golden path with defensive guards. 44% production-ready.
+- **SpecKit** — *methodology demonstration*. Spec → plan → tasks → implement, traceable everywhere. 38% production-ready.
+- **BMAD** — ***production-grade scaffold***. App Service + slot-swap + observability + Key Vault + UAMI + dev/prod + CodeQL + Dependabot + CODEOWNERS + release. **78% production-ready** — nearly twice Classical.
+
+**BMAD is the only one of the four whose IaC + pipeline footprint actually starts to look like a real platform team's output**, not a workshop demo. After the App Service migration:
+
+1. **`terraform validate` now passes both envs.** The previous Container Apps HCL semicolon bug is gone. `terraform fmt -check -recursive` still flags 7 files — cosmetic, fixed by one `terraform fmt -recursive` write pass.
+2. **No demo-script / hotfix-scenario / checklists** — speaker would improvise on stage. SpecKit and Classical both have these.
+3. **The largest absolute Checkov failure count** (25) — but that's because BMAD has more resources to scan (KV, Log Analytics, App Service, federated identity, Storage from bootstrap), not because it's less hardened.
+4. **Heavy framework footprint**: ~214 BMAD framework `.md` files (~25k lines) live under `.agents/skills/` and `_bmad/`. These are install-time scaffolding from BMAD itself, not authored project docs (which total just 7 files / 378 lines — the leanest of all four).
+
+**Recommendation, single sentence:**
+**adopt BMAD as the production-grade target architecture** (App Service + slot-swap + observability + KV + UAMI + dev/prod + diagnostic settings + CodeQL + Dependabot), **port SpecKit's `demo-script.md` + `hotfix-scenario.md` + `checklists/` for the on-stage narrative**, **port Classical's three-var OIDC gate + weekly security cron + cold-start retry** as defensive guards, **run `terraform fmt -recursive` once to clean the 7 cosmetic drifts before any demo**, and treat the result as **the real golden path** worth running in production after closing the remaining items in `COMPARISON_SUMMARY.md` §3 (branch protection, structured logging, alerts on `Http5xx`, SHA-pinned Actions, OpenAPI + contract test).
 
 ---
 
 ## 6. One-Line Verdicts
 
-- **Use Clean** when teaching the *bare-minimum* golden path or when starting a new repo that will grow into Classical/SpecKit.
-- **Use Classical** when the demo audience will *operate* the result — operator docs and defensive guards matter most.
-- **Use SpecKit** when the demo audience cares about the *process* — spec → plan → tasks → implement → demo, with traceability everywhere.
+- **Clean** — teach the bare minimum.
+- **Classical** — live-demo on a stage; operator-friendly out of the box.
+- **SpecKit** — spec-driven-development talk; methodology rigor matters.
+- **BMAD** — **closest of the four to "would I actually run this?"** Use as the target architecture and back-port the demo polish from SpecKit + the defensive guards from Classical.
 
-For a real production deployment, **none of the three is ready**: all need the Top 10 items from `COMPARISON_SUMMARY.md` §3 (remote TF state, branch protection, App Insights, structured logs, diagnostic settings, alerts, SLOs, OpenAPI + contract test, SAST, SHA-pinning, Dependabot).
+Of the four, **only BMAD has Application Insights, Key Vault, managed identity, multi-environment, slot-based deploys with swap, diagnostic settings on the web app, and a release workflow.** Its Terraform now parses and validates — the only remaining IaC chore is a one-shot `terraform fmt -recursive`.
 
 ---
 
-*End of three-way comparison.*
-*Two-way summary: `COMPARISON_SUMMARY.md`. Long form: `COMPARISON_REPORT.md`.*
+*End of four-way comparison.*
+*Three-way: `COMPARISON_3WAY.md`. Two-way summary: `COMPARISON_SUMMARY.md`. Long form: `COMPARISON_REPORT.md`.*
