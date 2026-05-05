@@ -13,7 +13,6 @@ on:
 permissions:
   id-token: write
   contents: read
-  packages: write
   security-events: write
 
 concurrency:
@@ -22,108 +21,55 @@ concurrency:
 
 env:
   TF_VERSION: "1.9.5"
+  NODE_VERSION: "20"
   ENVIRONMENT: dev
-  IMAGE_NAME: brasov-sunset-api
-  ACR_NAME: acrsunsetapidev
 
 jobs:
   build:
-    name: Build, scan, sign and push image
+    name: Build deployable zip
     runs-on: ubuntu-latest
-    environment: dev
     outputs:
-      image_tag: ${{ steps.meta.outputs.tag }}
-      image_digest: ${{ steps.bp.outputs.digest }}
-      acr_server: ${{ steps.acr.outputs.server }}
+      app_version: ${{ steps.meta.outputs.app_version }}
+      artifact_name: ${{ steps.meta.outputs.artifact_name }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Compute image tag
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Compute version
         id: meta
-        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
-
-      - name: Azure login via OIDC
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Resolve ACR
-        id: acr
         run: |
-          server=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv)
-          echo "server=$server" >> "$GITHUB_OUTPUT"
+          v="${GITHUB_SHA::12}"
+          echo "app_version=$v" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=brasov-sunset-api-$v" >> "$GITHUB_OUTPUT"
 
-      - name: ACR login
-        run: az acr login --name "$ACR_NAME"
+      - name: Install production dependencies
+        working-directory: App
+        run: npm install --omit=dev --no-audit --no-fund
 
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Stamp APP_VERSION into package.json
+        working-directory: App
+        run: |
+          tmp=$(mktemp)
+          jq --arg v "${{ steps.meta.outputs.app_version }}" '.version=$v' package.json > "$tmp" && mv "$tmp" package.json
 
-      - name: Build and push
-        id: bp
-        uses: docker/build-push-action@v6
-        with:
-          context: ./App
-          file: ./App/Dockerfile
-          push: true
-          tags: |
-            ${{ steps.acr.outputs.server }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
-            ${{ steps.acr.outputs.server }}/${{ env.IMAGE_NAME }}:dev-latest
-          build-args: |
-            APP_VERSION=${{ steps.meta.outputs.tag }}
-            GIT_SHA=${{ github.sha }}
-          provenance: true
-          sbom: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Create zip package
+        working-directory: App
+        run: |
+          zip -r "../${{ steps.meta.outputs.artifact_name }}.zip" \
+              server.js package.json package-lock.json node_modules
 
-      - name: Trivy image scan
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: ${{ steps.acr.outputs.server }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
-          format: sarif
-          output: trivy-image.sarif
-
-      - name: Upload Trivy SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-image.sarif
-
-      - name: Generate SBOM
-        uses: anchore/sbom-action@v0
-        with:
-          image: ${{ steps.acr.outputs.server }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
-          format: spdx-json
-          output-file: sbom.spdx.json
-
-      - name: Upload SBOM artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sbom-${{ steps.meta.outputs.tag }}
-          path: sbom.spdx.json
-
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: Cosign sign (keyless)
-        run: |
-          cosign sign --yes \
-            "${{ steps.acr.outputs.server }}/${{ env.IMAGE_NAME }}@${{ steps.bp.outputs.digest }}"
-
-      - name: Cosign attest SBOM
-        run: |
-          cosign attest --yes --predicate sbom.spdx.json --type spdxjson \
-            "${{ steps.acr.outputs.server }}/${{ env.IMAGE_NAME }}@${{ steps.bp.outputs.digest }}"
+          name: ${{ steps.meta.outputs.artifact_name }}
+          path: ${{ steps.meta.outputs.artifact_name }}.zip
+          retention-days: 14
 
   deploy:
-    name: Terraform apply + smoke test
+    name: Terraform apply + zip deploy + smoke
     runs-on: ubuntu-latest
     needs: [build]
     environment: dev
@@ -131,7 +77,7 @@ jobs:
       run:
         working-directory: infra/terraform/envs/dev
     env:
-      TF_VAR_image_tag: ${{ needs.build.outputs.image_tag }}
+      TF_VAR_app_version: ${{ needs.build.outputs.app_version }}
       ARM_USE_OIDC: "true"
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -178,16 +124,24 @@ jobs:
       - name: Capture outputs
         id: tfout
         run: |
-          echo "app_url=$(terraform output -raw app_url)" >> "$GITHUB_OUTPUT"
-          echo "ca_name=$(terraform output -raw container_app)" >> "$GITHUB_OUTPUT"
+          echo "app_url=$(terraform output -raw app_url)"   >> "$GITHUB_OUTPUT"
+          echo "app_name=$(terraform output -raw app_name)" >> "$GITHUB_OUTPUT"
           echo "rg=$(terraform output -raw resource_group)" >> "$GITHUB_OUTPUT"
 
-      - name: Roll Container App revision to new image
+      - name: Download zip artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact_name }}
+          path: ${{ github.workspace }}/pkg
+
+      - name: Deploy zip to App Service
         run: |
-          az containerapp update \
-            --name "${{ steps.tfout.outputs.ca_name }}" \
+          az webapp deploy \
             --resource-group "${{ steps.tfout.outputs.rg }}" \
-            --image "${{ needs.build.outputs.acr_server }}/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.image_tag }}"
+            --name "${{ steps.tfout.outputs.app_name }}" \
+            --src-path "${{ github.workspace }}/pkg/${{ needs.build.outputs.artifact_name }}.zip" \
+            --type zip \
+            --async false
 
       - name: Smoke test endpoints
         shell: bash
@@ -195,21 +149,12 @@ jobs:
           set -euo pipefail
           base="${{ steps.tfout.outputs.app_url }}"
           for path in /healthz /readyz /sunset; do
-            echo "GET ${base}${path}"
             ok=0
-            for i in 1 2 3 4 5 6; do
+            for i in 1 2 3 4 5 6 7 8; do
               code=$(curl -fsS -o /tmp/resp -w "%{http_code}" "${base}${path}" || echo "000")
-              if [ "$code" = "200" ]; then
-                ok=1
-                cat /tmp/resp
-                echo
-                break
-              fi
-              echo "attempt $i: HTTP $code, retrying in 10s..."
-              sleep 10
+              if [ "$code" = "200" ]; then ok=1; cat /tmp/resp; echo; break; fi
+              echo "attempt $i: HTTP $code, retrying..."
+              sleep 15
             done
-            if [ "$ok" -ne 1 ]; then
-              echo "Smoke test failed for $path"
-              exit 1
-            fi
+            test "$ok" -eq 1
           done

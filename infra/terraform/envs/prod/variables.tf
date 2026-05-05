@@ -13,24 +13,20 @@ variable "location" {
   default = "westeurope"
 }
 
-variable "image_tag" {
-  description = "Container image tag deployed by CI."
+variable "app_version" {
+  description = "Version label surfaced as APP_VERSION (typically the released git tag)."
   type        = string
+}
+
+variable "app_service_sku" {
+  description = "App Service Plan SKU. P1v3 is the recommended floor for prod."
+  type        = string
+  default     = "P1v3"
 }
 
 variable "deployer_principal_ids" {
   type    = list(string)
   default = []
-}
-
-variable "min_replicas" {
-  type    = number
-  default = 1
-}
-
-variable "max_replicas" {
-  type    = number
-  default = 10
 }
 
 variable "log_retention_days" {

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Build and run the API locally in Docker, then probe its endpoints.
+  Run the API locally with Node.js, then probe its endpoints.
 #>
 
 [CmdletBinding()]
@@ -10,31 +10,36 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$ctx      = Join-Path $repoRoot 'App'
-$image    = 'brasov-sunset-api:local'
-$name     = 'brasov-sunset-api-local'
+$appDir   = Join-Path $repoRoot 'App'
 
-Write-Host "==> docker build" -ForegroundColor Cyan
-docker build `
-  --build-arg APP_VERSION=local `
-  --build-arg GIT_SHA=$(git -C $repoRoot rev-parse --short HEAD 2>$null) `
-  -t $image `
-  -f (Join-Path $ctx 'Dockerfile') `
-  $ctx
+Write-Host "==> npm install" -ForegroundColor Cyan
+Push-Location $appDir
+try {
+  npm install --no-audit --no-fund
 
-Write-Host "==> docker run" -ForegroundColor Cyan
-docker rm -f $name 2>$null | Out-Null
-docker run -d --name $name -p "${Port}:3000" $image | Out-Null
+  Write-Host "==> Starting server on port $Port" -ForegroundColor Cyan
+  $env:PORT = "$Port"
+  $env:APP_VERSION = 'local'
+  $proc = Start-Process -FilePath 'node' -ArgumentList 'server.js' -PassThru -NoNewWindow
 
-Start-Sleep -Seconds 2
-foreach ($p in @('/healthz', '/readyz', '/sunset')) {
-  Write-Host "==> GET http://localhost:$Port$p" -ForegroundColor Cyan
   try {
-    Invoke-RestMethod "http://localhost:$Port$p" | ConvertTo-Json -Depth 5
-  } catch {
-    Write-Warning "Failed: $($_.Exception.Message)"
+    Start-Sleep -Seconds 2
+    foreach ($p in @('/healthz', '/readyz', '/sunset')) {
+      Write-Host "==> GET http://localhost:$Port$p" -ForegroundColor Cyan
+      try {
+        Invoke-RestMethod "http://localhost:$Port$p" | ConvertTo-Json -Depth 5
+      } catch {
+        Write-Warning "Failed: $($_.Exception.Message)"
+      }
+    }
+    Write-Host "`nServer running with PID $($proc.Id). Press Ctrl+C to stop, or:" -ForegroundColor Yellow
+    Write-Host "  Stop-Process -Id $($proc.Id)"
+    Wait-Process -Id $proc.Id
+  }
+  finally {
+    if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
   }
 }
-
-Write-Host "`nContainer '$name' is running on port $Port. Stop it with:" -ForegroundColor Yellow
-Write-Host "  docker rm -f $name"
+finally {
+  Pop-Location
+}

@@ -13,26 +13,22 @@ variable "location" {
   default = "westeurope"
 }
 
-variable "image_tag" {
-  description = "Container image tag deployed by CI. Override via -var or TF_VAR_image_tag."
+variable "app_version" {
+  description = "Free-form version label surfaced as APP_VERSION env var (typically the commit SHA)."
   type        = string
-  default     = "latest"
+  default     = "dev"
+}
+
+variable "app_service_sku" {
+  description = "App Service Plan SKU. B1 is enough for dev."
+  type        = string
+  default     = "B1"
 }
 
 variable "deployer_principal_ids" {
-  description = "Object IDs of identities (e.g. GitHub OIDC SP) that need AcrPush + KV Secrets Officer."
+  description = "Object IDs of CI/operator identities granted Website Contributor on the web app."
   type        = list(string)
   default     = []
-}
-
-variable "min_replicas" {
-  type    = number
-  default = 0
-}
-
-variable "max_replicas" {
-  type    = number
-  default = 3
 }
 
 variable "log_retention_days" {

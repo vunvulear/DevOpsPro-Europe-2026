@@ -73,7 +73,7 @@ The suite (`App_Test/tests/sunset.test.js`) covers:
 
 ## Platform Engineering
 
-This repo ships a full Platform Engineering setup for Azure. See:
+This repo ships a full Platform Engineering setup for **Azure App Service** (Linux, Node 20 LTS) — code-based zip deployment, no Docker. See:
 
 - `docs/PLATFORM.md` — architecture, components, and decisions.
 - `docs/RUNBOOK.md` — day-2 operations.
@@ -85,11 +85,11 @@ This repo ships a full Platform Engineering setup for Azure. See:
 
 ```
 .
-├── App/                      # Node.js API + Dockerfile
+├── App/                      # Node.js API
 ├── App_Test/                 # Jest + Supertest tests
 ├── infra/terraform/
 │   ├── bootstrap/            # Remote state + GitHub OIDC
-│   ├── modules/              # observability, registry, identity, keyvault, container_app
+│   ├── modules/              # observability, identity, keyvault, app_service
 │   └── envs/{dev,prod}/      # Per-env root modules
 ├── .github/
 │   ├── workflows/            # ci, codeql, cd-dev, cd-prod, release
@@ -122,13 +122,13 @@ This repo ships a full Platform Engineering setup for Azure. See:
 
 # 3. Create GitHub Environments 'dev' and 'prod' (add reviewers to 'prod').
 
-# 4. Push to main -> CD-Dev runs.
-# 5. Tag a release v1.0.0 -> CD-Prod runs (after manual approval).
+# 4. Push to main -> CD-Dev runs (Terraform apply + zip deploy + smoke).
+# 5. Tag a release v1.0.0 -> CD-Prod runs (deploys to staging slot, swaps).
 ```
 
-### Local container test
+### Local run
 
 ```powershell
 ./scripts/local-dev.ps1
-# or:  make docker-run
+# or:  make run
 ```

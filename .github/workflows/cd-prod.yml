@@ -6,8 +6,8 @@ on:
       - "v*.*.*"
   workflow_dispatch:
     inputs:
-      image_tag:
-        description: "Image tag to promote (must already exist in dev ACR)"
+      app_version:
+        description: "Version label (commit SHA or tag) for the package."
         required: true
         type: string
 
@@ -22,88 +22,65 @@ concurrency:
 
 env:
   TF_VERSION: "1.9.5"
-  IMAGE_NAME: brasov-sunset-api
-  ACR_DEV: acrsunsetapidev
-  ACR_PROD: acrsunsetapiprod
+  NODE_VERSION: "20"
 
 jobs:
-  promote:
-    name: Promote image dev -> prod ACR
+  build:
+    name: Build prod zip
     runs-on: ubuntu-latest
-    environment: prod
     outputs:
-      image_tag: ${{ steps.meta.outputs.tag }}
-      acr_server: ${{ steps.acr.outputs.server }}
+      app_version: ${{ steps.meta.outputs.app_version }}
+      artifact_name: ${{ steps.meta.outputs.artifact_name }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Determine image tag
+      - name: Compute version
         id: meta
         run: |
-          if [ -n "${{ github.event.inputs.image_tag }}" ]; then
-            tag="${{ github.event.inputs.image_tag }}"
+          if [ -n "${{ github.event.inputs.app_version }}" ]; then
+            v="${{ github.event.inputs.app_version }}"
           else
-            tag="${GITHUB_REF_NAME#v}"
+            v="${GITHUB_REF_NAME#v}"
           fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "app_version=$v" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=brasov-sunset-api-$v" >> "$GITHUB_OUTPUT"
 
-      - name: Azure login via OIDC
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Install production dependencies
+        working-directory: App
+        run: npm install --omit=dev --no-audit --no-fund
 
-      - name: Resolve prod ACR
-        id: acr
+      - name: Stamp APP_VERSION into package.json
+        working-directory: App
         run: |
-          server=$(az acr show -n "$ACR_PROD" --query loginServer -o tsv)
-          echo "server=$server" >> "$GITHUB_OUTPUT"
+          tmp=$(mktemp)
+          jq --arg v "${{ steps.meta.outputs.app_version }}" '.version=$v' package.json > "$tmp" && mv "$tmp" package.json
 
-      - name: Import image from dev ACR to prod ACR
+      - name: Create zip package
+        working-directory: App
         run: |
-          az acr import \
-            --name "$ACR_PROD" \
-            --source "$ACR_DEV.azurecr.io/${IMAGE_NAME}:${{ steps.meta.outputs.tag }}" \
-            --image  "${IMAGE_NAME}:${{ steps.meta.outputs.tag }}" \
-            --image  "${IMAGE_NAME}:prod-latest" \
-            --force
+          zip -r "../${{ steps.meta.outputs.artifact_name }}.zip" \
+              server.js package.json package-lock.json node_modules
 
-      - name: Trivy scan (prod-promoted)
-        uses: aquasecurity/trivy-action@0.28.0
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          image-ref: ${{ steps.acr.outputs.server }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
-          format: sarif
-          output: trivy-image-prod.sarif
-
-      - name: Upload SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-image-prod.sarif
-
-      - name: Verify cosign signature
-        uses: sigstore/cosign-installer@v3
-      - name: cosign verify
-        run: |
-          cosign verify \
-            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/cd-dev.yml@.*" \
-            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            "${{ steps.acr.outputs.server }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}"
+          name: ${{ steps.meta.outputs.artifact_name }}
+          path: ${{ steps.meta.outputs.artifact_name }}.zip
+          retention-days: 90
 
   deploy:
-    name: Terraform apply + smoke test (prod)
+    name: Terraform apply + slot deploy + swap (prod)
     runs-on: ubuntu-latest
-    needs: [promote]
+    needs: [build]
     environment: prod
     defaults:
       run:
         working-directory: infra/terraform/envs/prod
     env:
-      TF_VAR_image_tag: ${{ needs.promote.outputs.image_tag }}
+      TF_VAR_app_version: ${{ needs.build.outputs.app_version }}
       ARM_USE_OIDC: "true"
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -149,28 +126,61 @@ jobs:
       - name: Capture outputs
         id: tfout
         run: |
-          echo "app_url=$(terraform output -raw app_url)" >> "$GITHUB_OUTPUT"
-          echo "ca_name=$(terraform output -raw container_app)" >> "$GITHUB_OUTPUT"
-          echo "rg=$(terraform output -raw resource_group)" >> "$GITHUB_OUTPUT"
+          echo "app_url=$(terraform output -raw app_url)"               >> "$GITHUB_OUTPUT"
+          echo "staging_url=$(terraform output -raw staging_slot_url)"  >> "$GITHUB_OUTPUT"
+          echo "app_name=$(terraform output -raw app_name)"             >> "$GITHUB_OUTPUT"
+          echo "rg=$(terraform output -raw resource_group)"             >> "$GITHUB_OUTPUT"
 
-      - name: Roll Container App revision
+      - name: Download zip artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact_name }}
+          path: ${{ github.workspace }}/pkg
+
+      - name: Deploy zip to staging slot
         run: |
-          az containerapp update \
-            --name "${{ steps.tfout.outputs.ca_name }}" \
+          az webapp deploy \
             --resource-group "${{ steps.tfout.outputs.rg }}" \
-            --image "${{ needs.promote.outputs.acr_server }}/${{ env.IMAGE_NAME }}:${{ needs.promote.outputs.image_tag }}"
+            --name "${{ steps.tfout.outputs.app_name }}" \
+            --slot staging \
+            --src-path "${{ github.workspace }}/pkg/${{ needs.build.outputs.artifact_name }}.zip" \
+            --type zip \
+            --async false
 
-      - name: Smoke test endpoints
+      - name: Smoke test staging slot
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${{ steps.tfout.outputs.staging_url }}"
+          for path in /healthz /readyz /sunset; do
+            ok=0
+            for i in 1 2 3 4 5 6 7 8; do
+              code=$(curl -fsS -o /tmp/resp -w "%{http_code}" "${base}${path}" || echo "000")
+              if [ "$code" = "200" ]; then ok=1; cat /tmp/resp; echo; break; fi
+              echo "attempt $i: HTTP $code"; sleep 15
+            done
+            test "$ok" -eq 1
+          done
+
+      - name: Swap staging into production
+        run: |
+          az webapp deployment slot swap \
+            --resource-group "${{ steps.tfout.outputs.rg }}" \
+            --name "${{ steps.tfout.outputs.app_name }}" \
+            --slot staging \
+            --target-slot production
+
+      - name: Smoke test production after swap
         shell: bash
         run: |
           set -euo pipefail
           base="${{ steps.tfout.outputs.app_url }}"
           for path in /healthz /readyz /sunset; do
             ok=0
-            for i in 1 2 3 4 5 6; do
+            for i in 1 2 3 4 5 6 7 8; do
               code=$(curl -fsS -o /tmp/resp -w "%{http_code}" "${base}${path}" || echo "000")
               if [ "$code" = "200" ]; then ok=1; cat /tmp/resp; echo; break; fi
-              echo "attempt $i: HTTP $code"; sleep 10
+              echo "attempt $i: HTTP $code"; sleep 15
             done
             test "$ok" -eq 1
           done

@@ -1,8 +1,9 @@
-output "resource_group" { value = azurerm_resource_group.this.name }
-output "acr_login_server" { value = module.registry.login_server }
-output "app_url"         { value = module.container_app.url }
-output "container_app"   { value = module.container_app.name }
-output "key_vault"       { value = module.keyvault.name }
+output "resource_group"   { value = azurerm_resource_group.this.name }
+output "app_name"         { value = module.app_service.name }
+output "app_url"          { value = module.app_service.url }
+output "staging_slot_url" { value = module.app_service.staging_slot_url }
+output "key_vault"        { value = module.keyvault.name }
+
 output "appinsights_connection_string" {
   value     = module.observability.appinsights_connection_string
   sensitive = true

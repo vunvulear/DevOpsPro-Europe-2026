@@ -23,12 +23,6 @@ updates:
       interval: weekly
     labels: ["dependencies", "ci"]
 
-  - package-ecosystem: docker
-    directory: "/App"
-    schedule:
-      interval: weekly
-    labels: ["dependencies", "docker"]
-
   - package-ecosystem: terraform
     directory: "/infra/terraform/envs/dev"
     schedule:

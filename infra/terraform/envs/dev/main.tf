@@ -6,9 +6,7 @@ locals {
     managed_by  = "terraform"
   }
 
-  # ACR / KV names must be globally unique. Squash separators.
-  acr_name = lower(replace("acr${var.project_name}${var.environment}", "-", ""))
-  kv_name  = "kv-${var.project_name}-${var.environment}"
+  kv_name = "kv-${var.project_name}-${var.environment}"
 }
 
 resource "azurerm_resource_group" "this" {
@@ -23,19 +21,6 @@ module "identity" {
   resource_group_name = azurerm_resource_group.this.name
   location            = azurerm_resource_group.this.location
   tags                = local.tags
-}
-
-module "registry" {
-  source              = "../../modules/registry"
-  acr_name            = local.acr_name
-  resource_group_name = azurerm_resource_group.this.name
-  location            = azurerm_resource_group.this.location
-  sku                 = "Standard"
-
-  pull_principal_ids = [module.identity.principal_id]
-  push_principal_ids = var.deployer_principal_ids
-
-  tags = local.tags
 }
 
 module "observability" {
@@ -61,22 +46,25 @@ module "keyvault" {
   tags = local.tags
 }
 
-module "container_app" {
-  source                        = "../../modules/container_app"
+module "app_service" {
+  source                        = "../../modules/app_service"
   name                          = local.name
   resource_group_name           = azurerm_resource_group.this.name
   location                      = azurerm_resource_group.this.location
-  log_analytics_workspace_id    = module.observability.log_analytics_workspace_id
+  sku_name                      = var.app_service_sku
   user_assigned_identity_id     = module.identity.id
-  acr_login_server              = module.registry.login_server
-  image                         = "${module.registry.login_server}/brasov-sunset-api:${var.image_tag}"
-  app_version                   = var.image_tag
+  log_analytics_workspace_id    = module.observability.log_analytics_workspace_id
   appinsights_connection_string = module.observability.appinsights_connection_string
-
-  min_replicas = var.min_replicas
-  max_replicas = var.max_replicas
-  cpu          = 0.25
-  memory       = "0.5Gi"
+  app_version                   = var.app_version
+  create_staging_slot           = false # dev does not need slot swaps
 
   tags = local.tags
+}
+
+# Allow the deployer (CI service principal) to publish zip packages to the web app.
+resource "azurerm_role_assignment" "deployer_website_contributor" {
+  for_each             = toset(var.deployer_principal_ids)
+  scope                = module.app_service.id
+  role_definition_name = "Website Contributor"
+  principal_id         = each.value
 }
