@@ -1,0 +1,42 @@
+# Cost policy for the golden path.
+# Kept short and readable; enforcement is mostly documented today.
+
+apiVersion: platform/v1
+kind: CostPolicy
+metadata:
+  name: golden-path-cost
+spec:
+  cost_allocation:
+    required_tags:
+      - environment
+      - owner
+      - project
+  app_service_plan:
+    rules:
+      - description: SKU must be intentionally selected for each environment.
+      - description: Demo / dev environments use a low-cost SKU.
+      - description: Production must not use Free or Shared tiers.
+    environment_defaults:
+      dev:
+        sku_name: B1
+        always_on: false
+      test:
+        sku_name: B1
+        always_on: false
+      staging:
+        sku_name: P1v3
+        always_on: true
+      prod:
+        sku_name: P1v3
+        always_on: true
+  visibility:
+    rules:
+      - description: Cost should be visible before deployment.
+      - description: Use `terraform plan` output as the change preview.
+      - description: Add Infracost / Azure Cost Management later.
+  enforcement:
+    level: documented
+    notes: |
+      Today, this policy is a checklist for reviewers. Future
+      improvements include OPA / Checkov rules on Terraform plans
+      and a CI step that posts an Infracost diff on the PR.

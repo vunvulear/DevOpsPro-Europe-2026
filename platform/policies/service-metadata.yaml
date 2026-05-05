@@ -1,0 +1,34 @@
+# Service metadata for the Brasov Sunset API.
+# Every service in the golden path is expected to have one of these.
+
+apiVersion: platform/v1
+kind: Service
+metadata:
+  name: brasov-sunset-api
+  description: |
+    Returns today's sunset time for Brasov, Romania. Demo workload
+    used for the Platform Engineering golden path.
+  owner: platform-team       # team or person responsible
+  project: brasov-sunset-api
+  tier: demo                 # demo | non-prod | prod
+spec:
+  language: nodejs
+  runtime: node-20-lts
+  source:
+    app: App/
+    tests: App_Test/
+  endpoints:
+    - path: /
+      description: API info
+    - path: /sunset
+      description: Sunset time for Brasov
+  health:
+    path: /
+    expected_status: 200
+  deployment:
+    target: azure-app-service
+    iac: infra/terraform/
+    pipeline: .github/workflows/deploy-azure-app-service.yml
+  links:
+    repository: https://github.com/vunvulear/DevOpsPro-Europe-2026
+    docs: README.md

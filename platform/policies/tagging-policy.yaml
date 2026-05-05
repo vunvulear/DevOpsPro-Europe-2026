@@ -1,0 +1,26 @@
+# Tagging policy for cloud resources in the golden path.
+
+apiVersion: platform/v1
+kind: TaggingPolicy
+metadata:
+  name: golden-path-tagging
+spec:
+  required_tags:
+    - name: environment
+      description: Environment the resource belongs to.
+      allowed_values: [dev, test, staging, prod]
+    - name: owner
+      description: Owning team or contact for the resource.
+    - name: project
+      description: Logical project name (matches service-metadata.yaml).
+  recommended_tags:
+    - name: managed_by
+      description: Tool that manages the resource (e.g. terraform).
+    - name: cost_center
+      description: Optional cost center for finance reporting.
+  enforcement:
+    level: documented   # documented | warn | block
+    notes: |
+      Required tags are set in `infra/terraform/main.tf` via
+      `local.common_tags`. CI enforcement (Checkov / OPA) is a future
+      improvement.
