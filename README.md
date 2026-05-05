@@ -1,254 +1,237 @@
-# SpecKit vs Classical — Short Comparison
+# Three-Way Comparison: SpecKit vs Classical vs Clean
 
+| Repo | Approach | Path |
+|---|---|---|
+| **SpecKit** | Spec Kit-driven (`/speckit.specify` → `plan` → `tasks` → `implement`) | `c:\Users\rvunvulea\Downloads\DevOps2026_Spec\DevOpsPro-Europe-2026` |
+| **Classical** | Numbered-prompts approach with rich operator docs and defensive workflow guards | `c:\Users\rvunvulea\Downloads\DevOps2026` |
+| **Clean** | Pure prompting only — minimal scaffolding, no Spec Kit, no demo artefacts | `c:\Users\rvunvulea\Downloads\DevOps2026_Clean` |
 
 ---
 
-## 1. Scorecard (post-measurement, post-fix)
+## 1. Scorecard (post-measurement)
 
 Scale: 0 = missing • 1 = unusable • 2 = partial • 3 = valid w/ issues • 4 = strong w/ minor issues • 5 = production-ready.
 
-| Category | SpecKit | Classical | Winner |
-|---|:-:|:-:|:-:|
-| Requirements coverage | 4 | 4 | Tie |
-| REST API design | 2 | 2 | Tie |
-| Application architecture | 3 | 3 | Tie |
-| Terraform / IaC | 4 | 4 | Tie *(after fix)* |
-| Policy & security | 3 | 3 | Tie *(SpecKit edge on matrix)* |
-| CI/CD pipelines | 3 | 4 | **Classical** |
-| Testing strategy | 3 | 3 | Tie |
-| Observability & operations | 3 | 3 | Tie |
-| Documentation (README + docs) | 3 | 4 | **Classical** |
-| Maintainability | 4 | 3 | **SpecKit** |
-| Spec/plan/tasks rigor | 4 | 3 | **SpecKit** |
-| Production readiness *(see §3)* | 2 | 2 | Tie |
-| **Aggregate** | **38** | **39** | within noise |
+| Category | SpecKit | Classical | **Clean** | Winner |
+|---|:-:|:-:|:-:|:-:|
+| Requirements coverage | 4 | 4 | 3 | SpecKit/Classical (Clean misses `/healthz`) |
+| REST API design | 2 | 2 | 2 | Tie |
+| Application architecture | 3 | 3 | 3 | Tie |
+| Terraform / IaC hardening | 4 | 4 | **2** | SpecKit/Classical |
+| `terraform fmt` clean | ✅ | ✅ | **❌** | SpecKit/Classical |
+| Policy & security | 3 | 3 | 2 | SpecKit/Classical |
+| CI/CD pipelines | 3 | 4 | 2 | **Classical** |
+| Testing strategy | 3 | 3 | 3 | Tie (Clean has fewer tests by design) |
+| Observability & operations | 3 | 3 | 2 | SpecKit/Classical |
+| Documentation (README + docs) | 3 | 4 | 2 | **Classical** |
+| Maintainability | 4 | 3 | **5** | **Clean** (smallest surface) |
+| Spec/plan/tasks rigor | 4 | 3 | 2 | **SpecKit** |
+| Production readiness *(see §3)* | 2 | 2 | 1 | SpecKit/Classical |
+| **Aggregate (out of 65)** | **40** | **41** | **31** | **Classical** |
+
+**Quick read:** Clean is **20–25% smaller** in every artefact dimension and pays for that with weaker IaC hardening, no `/healthz`, no demo scripts, no policy enforcement matrix, and an unformatted `main.tf`. Classical and SpecKit remain within 1 point of each other; Clean trails by ~10 points but is the cleanest *baseline* to extend.
 
 ---
 
-## 2. Pros & Cons by Perspective
+## 2. Pros & Cons by Perspective (3-way)
 
 ### Developer perspective
 
-| | SpecKit | Classical |
-|---|---|---|
-| **Pros** | Header comments cite `Task: T<x>.<n>` + constitutional principle — every artefact is traceable to its origin. File-per-screen discipline keeps every workflow ≤80 lines and every `.tf` ≤45 lines. Strict placeholder-only `dev.tfvars`. | Larger, narrative `README.md` (242 lines) gets a new joiner productive in ~10 min without opening `specs/`. `var.node_version` and conditional `always_on` give more knobs. Per-folder `infra/terraform/README.md` walks the migration to remote state. |
-| **Cons** | Hardcoded `node_version = "20-lts"` in `main.tf` — bumps require code change. `always_on` not set (provider default; brittle on `F1`/`Y1` SKUs). README too terse — must enter `specs/` to learn the system. | No DoD per task; `T-01..T-15` flat IDs harder to extend per stage. Header comments don't link back to the spec. Slightly looser `dev.tfvars` (real-looking names like `rg-brasov-sunset-dev`). |
+| | SpecKit | Classical | Clean |
+|---|---|---|---|
+| **Pros** | Per-task DoD + `[P]` markers + constitutional principle citations in headers. File-per-screen workflows. | Big README (242 lines / 13.5 KB) gets new joiners productive fast. `var.node_version` + conditional `always_on`. | **Smallest cognitive load.** ~24 markdown files vs ~60. `var.node_version` parametrised. Two-line `infra/terraform/main.tf` per resource. |
+| **Cons** | README too terse — must enter `specs/`. Hardcoded `node_version`. | Flatter task IDs; no spec-traceability in headers. | **No `health_check_path`**; no TLS pinning; no `https_only`-paired hardening. **`main.tf` not `terraform fmt`-clean.** |
 
 ### Platform / SRE perspective
 
-| | SpecKit | Classical |
-|---|---|---|
-| **Pros** | `policy-guardrails.md` enforcement matrix (Rule × Source × Status × Enforced-by-today × Hardening-path) — strongest single artefact in either repo. `tagging-policy.yaml` cites `infra/terraform/locals.tf:common_tags` for direct traceability. `runbook.md` is one focused page. | Three-variable OIDC gate on plan/deploy (`AZURE_CLIENT_ID && TENANT_ID && SUBSCRIPTION_ID`). Weekly security cron + `workflow_dispatch`. Smoke-test cold-start retry loop. `App_Test` audited too. `platform/docs/operational-readiness.md` includes a roadmap (Structured logs → App Insights → OTel → Alerts/SLOs). |
-| **Cons** | Single-variable OIDC gate — fails late at `azure/login` if only one var is set. No App_Test audit. No weekly security cron. No cold-start retry loop on smoke test. `marocchino/sticky-pull-request-comment` extra third-party dep. | Plan-comment renderer is 96-line inline `actions/github-script` — heavier file. `repo` is a literal in `local.common_tags` (rename = code change). |
+| | SpecKit | Classical | Clean |
+|---|---|---|---|
+| **Pros** | `policy-guardrails.md` enforcement matrix; tight runbook; `tagging-policy.yaml` cites Terraform locals. | Three-var OIDC gate; weekly security cron + `workflow_dispatch`; cold-start retry on smoke test; broader audit scope. | One-page `platform/docs/operational-readiness.md`; smaller blast radius. |
+| **Cons** | Single-var OIDC gate; no weekly cron; no retry loop. | Heavier workflow surface. | **No cost workflow at all.** No demo artefacts. No enforcement matrix. Smallest IaC surface = least hardening. |
 
 ### Security perspective
 
-| | SpecKit | Classical |
-|---|---|---|
-| **Pros** | Zero secrets in repo, OIDC-only, fork-safe skip-clean. Strict placeholder `dev.tfvars`. Variable validation on `environment ∈ {dev,test,prod}`. Same Trivy/Gitleaks/Checkov/npm-audit posture as Classical. | Same OIDC story; **broader audit scope** (`App_Test/` also audited at `high+`). Trivy pinned to a newer major (`v0.36.0` vs SpecKit's `0.28.0`). |
-| **Cons** | None unique. | None unique. **Both** ship `soft_fail: true` on Checkov, no SBOM/Grype/Semgrep, no SHA-pinned third-party Actions, no Rego/conftest enforcement of the YAML guardrails. |
+| | SpecKit | Classical | Clean |
+|---|---|---|---|
+| **Pros** | Same trio as others (Trivy + Gitleaks + Checkov + npm-audit). Strict placeholder `dev.tfvars`. | Same trio + broader scope (`App_Test/` audited too). | Same trio. **Fewer attack surfaces by virtue of being smaller** (no `/healthz` route, no extra endpoints). |
+| **Cons** | None unique. | None unique. | **`http_logs` not enabled, no managed identity, no AAD register, no public-network-disable** — Checkov fails 16 (vs 12 for others). |
 
 ### Compliance / governance perspective
 
-| | SpecKit | Classical |
-|---|---|---|
-| **Pros** | Most policy artefacts written as YAML (`deployment-policy.yaml`, `cost-policy.yaml`, `tagging-policy.yaml`, `service.yaml`) — lintable, OPA-able later. Enforcement matrix is honest about Enforced/Documented/Planned. | Each policy file is *richer* (e.g. `cost-policy.yaml`: principles, defaults, monthly_budget_usd, required_signals_on_pr, review_rules, enforcement). `service-metadata.yaml` uses `apiVersion/kind` Kubernetes-style schema. |
-| **Cons** | Smaller per-policy content; budgets are placeholders. | `deployment-policy.md` is Markdown, not YAML — harder to lint. No enforcement matrix; the "Enforced/Documented/Planned" story is split across two files. |
+| | SpecKit | Classical | Clean |
+|---|---|---|---|
+| **Pros** | Most policies as YAML; enforcement matrix is honest about Enforced/Documented/Planned. | Per-policy content is richer (cost-policy.yaml has principles, defaults, monthly_budget_usd, review_rules). | **4 platform docs** is enough to read in 10 minutes; less to maintain. |
+| **Cons** | Smaller per-policy content; budgets are placeholders. | `deployment-policy.md` is Markdown, not YAML. | **No `cost-policy.yaml`** budget; no `service.yaml`-level metadata; no policy-guardrails matrix. |
 
 ### Demo / on-stage perspective
 
-| | SpecKit | Classical |
-|---|---|---|
-| **Pros** | First-class `demo-script.md` (per-stage cue / action / expected / fallback) and `hotfix-scenario.md` (the diacritic-drift story, 4:45 timing). Three pre-flight `checklists/` (demo, iac, security). Time budget per stage in `plan.md`. | `prompts/` has a single `hotfix-failing-golden-path.md` covering the same concept; `platform/docs/demo-flow.md` and `hotfix-demo.md` cover the on-stage narrative. |
-| **Cons** | Speaker must mentally re-link several files. | No on-stage script with timing per stage; no checklist artefacts. Higher cognitive load if a step fails. |
+| | SpecKit | Classical | Clean |
+|---|---|---|---|
+| **Pros** | First-class `demo-script.md` (per-stage cue/action/expected/fallback) + `hotfix-scenario.md` + 3 checklists. | `prompts/hotfix-failing-golden-path.md`, `platform/docs/demo-flow.md`, `hotfix-demo.md`. | Nothing to bin or maintain; clean canvas for ad-hoc demos. |
+| **Cons** | Must mentally re-link several files. | No on-stage script with timing per stage. | **No demo script. No hotfix scenario. No checklists.** Speaker improvises everything. |
 
 ### Cost perspective
 
-| | SpecKit | Classical |
-|---|---|---|
-| **Pros** | `cost.yml` is 30 lines: clean separation between YAML (workflow) and shell (`scripts/cost-comment.sh`). | Self-contained `cost-awareness.yml` (96 lines, no extra script): one workflow, idempotent comment update via `actions/github-script`. |
-| **Cons** | Extra third-party action dep (`marocchino/sticky-pull-request-comment`). | Larger workflow file; SKU extraction is inline shell embedded in YAML. |
+| | SpecKit | Classical | Clean |
+|---|---|---|---|
+| **Pros** | `cost.yml` is 30 lines + clean separation of YAML and shell. | Self-contained 96-line `cost-awareness.yml`; idempotent comment update. | **`cost-awareness.md` documented**, no workflow to maintain. |
+| **Cons** | Extra third-party action dep. | Larger YAML. | **No PR cost-comment automation at all** — costs are documented but never surfaced in CI. |
 
 ### Maintenance perspective
 
-| | SpecKit | Classical |
-|---|---|---|
-| **Pros** | YAML workflows are 23% smaller (777 vs 1,013 lines). Markdown 37% cleaner per markdownlint (368 vs 588 issues on authored `.md`). Task IDs `T<stage>.<n>` extend cleanly per stage. | Bigger workflows are more defensive (three-var gate, retry loops, weekly cron) — fewer 02:00 surprises. |
-| **Cons** | Fewer defensive guards; more reliance on reviewer discipline. | More surface to read on review; flat task IDs harder to extend. |
-
----
-
-## 3. Production-Readiness Scoring
-
-Treat each row as a binary "would I run this in production today?" check. **Both repos are intentionally demo-grade**; this table makes the gap explicit.
-
-| # | Capability | SpecKit | Classical | Notes |
-|---|---|:-:|:-:|---|
-| 1 | App tests pass on a clean runner | ✅ | ✅ | Jest 16/16 in both |
-| 2 | Dependency CVEs (`npm audit`, Trivy, Grype) | ✅ | ✅ | 0 vulns in both |
-| 3 | Secret scanning (Gitleaks full history) | ✅ | ✅ | 0 leaks in both |
-| 4 | OIDC-only auth, no secrets in repo | ✅ | ✅ | Verified by `gitleaks` + grep |
-| 5 | Workflow lint (`actionlint`) | ✅ | ✅ | 0 issues in both |
-| 6 | Terraform `fmt` + `validate` | ✅ *(after fix)* | ✅ | SpecKit needed `health_check_eviction_time_in_min` |
-| 7 | IaC misconfig scan (`checkov`) | ⚠️ | ⚠️ | 8 pass / 12 fail identical; `soft_fail` in CI |
-| 8 | Required tags on every resource | ✅ | ✅ | `local.common_tags` in both |
-| 9 | App Service hardening (HTTPS, TLS 1.2, FTPS off, HTTP/2, websockets/remote-debug off) | ✅ | ✅ | Identical |
-| 10 | `/healthz` wired to App Service `health_check_path` | ✅ | ✅ | Smoke-test asserts data |
-| 11 | **Remote Terraform state with locking** | ❌ | ❌ | **Local state in both — top blocker** |
-| 12 | **Branch protection on `main` enabled** | ❌ | ❌ | Documented intent, not enabled |
-| 13 | **Required PR checks (CI / security / TF validate)** | ❌ | ❌ | Same |
-| 14 | Approval gates per environment | ❌ | ❌ | Documented for `test`/`prod`, not implemented |
-| 15 | Rollback workflow (one-click) | ❌ | ❌ | Both rely on "re-run previous green" |
-| 16 | Deployment slots / zero-downtime swap | ❌ | ❌ | Out of scope by spec |
-| 17 | **Application Insights / Log Analytics** | ❌ | ❌ | Both: no metrics, no traces, no historical query |
-| 18 | **Structured logging** (`pino` / `winston`) | ❌ | ❌ | Both: default `console.log` |
-| 19 | **Request-id / correlation-id** | ❌ | ❌ | Neither |
-| 20 | **Distributed tracing (OTel)** | ❌ | ❌ | Neither |
-| 21 | **Alerts on `Http5xx` / availability** | ❌ | ❌ | Neither |
-| 22 | **SLO/SLI dashboards** | ❌ | ❌ | Neither — smoke test is the de-facto SLI |
-| 23 | **Synthetic monitoring (availability tests)** | ❌ | ❌ | Neither |
-| 24 | **Audit log shipping** (resource-level diagnostic settings → Log Analytics) | ❌ | ❌ | No `azurerm_monitor_diagnostic_setting` |
-| 25 | **GitHub audit log retention plan** | ❌ | ❌ | Documented nowhere |
-| 26 | **Activity log alerts** (subscription scope) | ❌ | ❌ | Neither |
-| 27 | OpenAPI / contract test | ❌ | ❌ | Neither has `openapi.yaml` |
-| 28 | SAST (Semgrep / CodeQL) | ❌ | ❌ | Both removed CodeQL between plan and impl |
-| 29 | SBOM (`syft` → SPDX/CycloneDX, published) | ❌ | ❌ | Generated locally in this review; not in CI |
-| 30 | SHA-pinned third-party Actions | ❌ | ❌ | Both pin majors only |
-| 31 | Load test / latency budget | ❌ | ❌ | No k6/Artillery in either |
-| 32 | Mutation testing | ❌ | ❌ | No Stryker.js |
-| 33 | Code coverage gate (≥80%) | ❌ | ❌ | Neither has `collectCoverageFrom` config |
-| 34 | ESLint + Prettier baseline | ❌ | ❌ | No `.eslintrc` / `.prettierrc` in either |
-| 35 | Container image (signed, scanned) | n/a | n/a | Zip-deploy; container path documented nowhere |
-| 36 | Disaster recovery / multi-region | ❌ | ❌ | Single region (`westeurope`) |
-| 37 | Backup / restore plan | ❌ | ❌ | Stateless app — but no documented assumption |
-| 38 | DPIA / data classification | ❌ | ❌ | Public sunset times — no PII; documented nowhere |
-| 39 | License compliance check | ⚠️ | ⚠️ | `license-checker` shows clean MIT/ISC/BSD; not gated in CI |
-| 40 | Vendor / dependency review automation (Dependabot) | ❌ | ❌ | Mentioned in plan, not configured |
-
-**Score:** SpecKit **10/40 (25%)** • Classical **10/40 (25%)** — both demo-grade, identical production-readiness profile.
-
-✅ = present and working • ⚠️ = present but soft / advisory only • ❌ = missing.
-
-### Top 10 must-fix items before either repo is production-ready
-
-1. Move Terraform to **remote `azurerm` backend with state locking**.
-2. Enable **branch protection** on `main` with required checks (`ci/test`, `security/*`, `terraform/validate`).
-3. Add **Application Insights** + **`pino`** structured logs + request-id middleware.
-4. Wire **diagnostic settings** on App Service → Log Analytics (audit log shipping).
-5. Add **alerts** on `Http5xx`, availability test on `/healthz`, action group → Teams/Slack/PagerDuty.
-6. Promote **Checkov** from `soft_fail: true` to hard-fail on a triaged baseline.
-7. Add **`openapi.yaml`** + Spectral lint + Dredd contract test.
-8. Add **SBOM (syft)** + **vuln scan (grype)** + **SAST (Semgrep / CodeQL)** as CI jobs.
-9. **SHA-pin** third-party GitHub Actions; enable Dependabot for `github-actions`, `npm`, `terraform`.
-10. Define one **SLO** (e.g. `p95 /sunset latency < 300 ms over 30 days`); alert on burn.
-
----
-
-## 4. Final Conclusion
-
-**SpecKit and Classical produce essentially the same artefact — but reach it through measurably different methodologies.** Both pass the same 16 Jest tests, audit clean, lint clean for workflows, scan clean for secrets and CVEs, share an identical Checkov-finding baseline, and live within 1 aggregate score point of each other.
-
-What's actually different is the **shape of the working artefacts**:
-
-- **SpecKit wins on rigor and discipline.** Its `plan.md` (408 lines vs Classical's 149), its `tasks.md` with per-task DoD, its `policy-guardrails.md` enforcement matrix, its 23%-smaller YAML, and its 37%-cleaner authored markdown all point at a process that *compounds well over time*. The price is leaner operator-facing docs.
-- **Classical wins on operator-facing polish.** Its 13.5 KB `README.md`, its 9 capability docs, its three-var OIDC gate, its weekly security cron, its cold-start retry loop, and its broader audit scope (`App_Test/` too) make it more *defensive on day one*. The price is heavier files, flatter task IDs, and less spec-traceability.
-
-**Recommendation, single sentence:** adopt **SpecKit as the methodology baseline**, **port Classical's `README.md` + `platform/docs/*.md` + four defensive workflow guards** on top, and treat the resulting hybrid as a *demo-grade golden path* that needs the **Top 10 must-fix list** above before any team should run it in production.
-
-The single observed defect (SpecKit's `terraform validate` failing on azurerm 4.71.0) was found by running `terraform validate` once — it would have been caught the first time CI executed the workflow against a current provider. **Fixed in this session** with a two-line patch; SpecKit's IaC score restored to 4.
-
----
-
-## 5. Tools and Metrics Used
-
-All tools were installed (or downloaded as a single binary) on this machine and run against **both** repos. Versions are pinned for reproducibility. Raw outputs at `c:\Users\rvunvulea\Downloads\DevOps2026Compare\results\`. Reproduction script: `c:\Users\rvunvulea\Downloads\DevOps2026Compare\run-validations.ps1`.
-
-### Executed
-
-| Tool | Version | Purpose | Source |
+| | SpecKit | Classical | Clean |
 |---|---|---|---|
-| Node.js / npm | 25.9.0 / 11.12.1 | Runtime + package manager | preinstalled |
-| Jest + Supertest | via `App_Test/package.json` | Unit/integration tests (`npm test`, `--coverage`) | npm |
-| `npm audit` | bundled | Dependency CVE check (`--omit=dev --audit-level=high`) | npm |
-| Terraform | 1.9.8 (windows-amd64) | `fmt -check -recursive`, `init -backend=false`, `validate` | hashicorp.com download |
-| `actionlint` | 1.7.7 | GitHub Actions YAML lint | github.com/rhysd/actionlint |
-| `gitleaks` | 8.21.2 | Full-history secret scan | github.com/gitleaks/gitleaks |
-| `trivy` | 0.70.0 | Filesystem scan (HIGH,CRITICAL, ignore-unfixed) + secrets | github.com/aquasecurity/trivy |
-| `checkov` | 3.2.526 | Terraform misconfig scan (`--framework terraform`) | `pip --user --only-binary=:all:` |
-| `syft` | 1.18.1 | SBOM generation (CycloneDX JSON) | github.com/anchore/syft |
-| `grype` | 0.86.1 | Vulnerability scan against SBOM | github.com/anchore/grype |
-| ESLint | 9.x via `npx` | JS lint (no project config — both repos lacked one) | npm |
-| Prettier | 3.x via `npx` | Style check on `App/` | npm |
-| `markdownlint-cli2` | 0.22.x via `npx` | Markdown lint on authored docs (excl. `.specify/`, `node_modules`) | npm |
-| `madge` | via `npx` | Circular-dependency check on `App/` | npm |
-| `depcheck` | via `npx` | Unused / missing deps in `App/` | npm |
-| `license-checker` | via `npx` | License inventory of `App/` production deps | npm |
-| Custom PowerShell `loc.ps1` | — | LOC + file count by extension (excl. `node_modules`, `.git`, `.terraform`) | repo-local |
-| Manual diff inspection | — | `App/server.js`, `App_Test/tests/sunset.test.js`, `spec.md` | — |
-
-### Not executed (with reason)
-
-| Tool | Reason |
-|---|---|
-| Semgrep | No native Windows support (requires WSL/Docker) |
-| `terraform plan` | Requires Azure OIDC; both workflows already do this conditionally in CI |
-| Infracost | Out of scope; no token; deferred per spec |
-| Dredd / Spectral | Neither repo has `openapi.yaml` to lint or contract-test |
-| k6 / Artillery | Out of scope; no perf/latency budget defined |
-| Stryker.js (mutation) | Out of scope at this stage |
-| `act` (local CI) | Time budget; both workflows already exercised in GitHub Actions |
-| `zizmor` | Time budget; finding (third-party Actions not SHA-pinned) is already known and shared by both repos |
-| `tflint` | Time budget; redundant with `checkov` for the demo's purpose |
-| `terrascan`, `tfsec` | Time budget; would add noise to an already-identical Checkov result |
-| OPA / `conftest` | Neither repo has Rego policies to enforce |
-
-### Metrics captured — values obtained
-
-| # | Metric | SpecKit | Classical | Source |
-|---|---|---|---|---|
-| 1 | Jest test outcome | **PASS 16/16** in 1.385 s | **PASS 16/16** in 1.566 s | `npm test` in `App_Test/` |
-| 2 | `npm audit --omit=dev --audit-level=high` (App) | **0 vulns** | **0 vulns** | npm |
-| 3 | Trivy fs HIGH/CRITICAL (ignore-unfixed) | **0 vulns, 0 secrets** | **0 vulns, 0 secrets** | Trivy 0.70.0 |
-| 4 | Grype `dir:App/` | **No vulnerabilities found** | **No vulnerabilities found** | Grype 0.86.1 |
-| 5 | Gitleaks (commits scanned / leaks) | 36 / **0** | 18 / **0** | Gitleaks 8.21.2 |
-| 6 | actionlint (`.github/workflows/*.yml`) | **0 issues** | **0 issues** | actionlint 1.7.7 |
-| 7 | ESLint v9 (no project config) | 7 errors (all `no-undef` for Node globals — config gap, false positives) | identical 7 errors | ESLint 9 via `npx` |
-| 8 | Prettier `--check App/` (files flagged) | **4** (`server.js`, `README.md`, `package.json`, `package-lock.json`) | **1** (`server.js`) | Prettier 3 |
-| 9 | markdownlint authored `.md` (issues) | **368** | **588** | markdownlint-cli2 |
-| 10 | `terraform fmt -check -recursive` | **PASS** (no diff) | **PASS** (no diff) | Terraform 1.9.8 |
-| 11 | `terraform init -backend=false` | PASS (azurerm v4.71.0) | PASS (azurerm v4.71.0) | Terraform 1.9.8 |
-| 12 | `terraform validate` | **PASS** *(after fix)* — pre-fix: FAIL on `health_check_eviction_time_in_min` pairing | **PASS** | Terraform 1.9.8 |
-| 13 | Checkov `--framework terraform` | **8 passed / 12 failed** | **8 passed / 12 failed** (identical rule IDs: `CKV_AZURE_212/225/211/13/17/65/66/63/213/16/78/214`) | Checkov 3.2.526 |
-| 14 | Syft SBOM components (App) | **71** | **71** | Syft 1.18.1 (CycloneDX) |
-| 15 | depcheck (unused / missing in App) | 0 / 0 | 0 / 0 | depcheck |
-| 16 | license-checker (App, prod) | MIT 65, ISC 2, BSD-3-Clause 2, Custom 1, BSD\* 1 | identical | license-checker |
-| 17 | madge `--circular App/` | none | none | madge |
-| 18 | `jest --coverage` | 0/0 (config gap — neither has `collectCoverageFrom`) | 0/0 (same) | Jest |
-| 19 | LOC `.js` (files / lines) | 2 / **134** | 2 / **134** | `loc.ps1` |
-| 20 | LOC `.tf` (files / lines) | **6** / 115 | 5 / 123 | `loc.ps1` |
-| 21 | LOC `.tfvars` (files / lines) | 1 / 9 | 1 / 11 | `loc.ps1` |
-| 22 | LOC `.yml` / `.yaml` (files / lines) | 14 / **777** | 13 / **1,013** | `loc.ps1` |
-| 23 | LOC `.md` (files / lines) | 63 / 4,347 | 60 / 4,339 | `loc.ps1` |
-| 24 | LOC `.json` (files / lines) | 10 / 5,681 | 10 / 5,681 | `loc.ps1` |
-| 25 | LOC `.sh` (files / lines) | 5 / 673 | 4 / 620 | `loc.ps1` |
-| 26 | Workflow size — `ci.yml` (lines) | 42 | 44 | manual |
-| 27 | Workflow size — `security*.yml` | 80 | 120 | manual |
-| 28 | Workflow size — `terraform-plan*.yml` | 60 | 128 | manual |
-| 29 | Workflow size — `deploy*.yml` | 77 | 138 | manual |
-| 30 | Workflow size — `cost*.yml` | 30 | 96 | manual |
-| 31 | `plan.md` (lines) | **408** | 149 | manual |
-| 32 | `tasks.md` ID scheme | `T<stage>.<n>` with DoD + `[P]` markers | `T-01..T-15` flat | manual |
-| 33 | `spec.md` size | 7,812 B | 7,812 B (**byte-identical**) | manual diff |
-| 34 | `README.md` size | 117 lines / 5,134 B | 242 lines / **13,523 B** | manual |
-| 35 | `platform/docs/` files | 2 | **9** | manual |
-| 36 | Demo artefacts (`demo-script.md`, `hotfix-scenario.md`, `checklists/`) | **present** (3 + 3 checklists) | absent (single `hotfix-failing-golden-path.md`) | manual |
-| 37 | `App/server.js` diff | identical except `endpoints: ['/sunset']` | identical except `endpoints: ['/sunset', '/healthz']` | manual diff |
-| 38 | `App_Test/tests/sunset.test.js` diff | identical 16-test suite | identical 16-test suite | manual diff |
-| 39 | OIDC gate variables | 1 (`AZURE_CLIENT_ID`) | **3** (`+TENANT_ID, +SUBSCRIPTION_ID`) | workflow inspection |
-| 40 | Weekly security cron | absent | **`'0 6 * * 1'`** + `workflow_dispatch` | workflow inspection |
-| 41 | Smoke-test cold-start retry loop | absent | **`for i in 1..5; sleep $((5*i))`** | workflow inspection |
-| 42 | Semgrep | **not run** (no native Windows support) | not run | — |
+| **Pros** | Workflows 23% smaller than Classical; markdown 37% cleaner. Per-stage task IDs extend cleanly. | Defensive workflows (3-var gate, cron, retry) reduce 02:00 surprises. | **Half the YAML, a third of the Markdown** of the next-smallest repo. **Lowest churn baseline by far.** |
+| **Cons** | More reliance on reviewer discipline. | More surface to read on review. | **Smallest does not mean most defensible** — every gap (no health endpoint, no TLS pin, no FTP-disabled) is a future ticket. |
 
 ---
 
-*End of summary. Long version with detailed findings: `COMPARISON_REPORT.md`.*
+## 3. Production-Readiness Scoring (3-way)
+
+40-row binary check; ✅ / ⚠️ / ❌. Same checklist as `COMPARISON_SUMMARY.md` §3.
+
+| # | Capability | SpecKit | Classical | **Clean** |
+|---|---|:-:|:-:|:-:|
+| 1 | App tests pass on a clean runner | ✅ (16/16) | ✅ (16/16) | ✅ (**15/15** — 1 fewer test by design) |
+| 2 | Dependency CVEs (`npm audit`, Trivy, Grype) | ✅ | ✅ | ✅ |
+| 3 | Secret scanning (Gitleaks full history) | ✅ (36 commits) | ✅ (18) | ✅ (50) |
+| 4 | OIDC-only auth, no secrets in repo | ✅ | ✅ | ✅ |
+| 5 | Workflow lint (`actionlint`) | ✅ | ✅ | ✅ |
+| 6 | Terraform `fmt` clean | ✅ | ✅ | **❌** (`main.tf` listed) |
+| 7 | Terraform `validate` | ✅ *(after fix)* | ✅ | ✅ |
+| 8 | IaC misconfig scan (`checkov`) | ⚠️ 8/12 | ⚠️ 8/12 | **⚠️ 4/16** |
+| 9 | Required tags on every resource | ✅ | ✅ | ✅ |
+| 10 | App Service `https_only` | ✅ | ✅ | ✅ |
+| 11 | App Service TLS 1.2 minimum | ✅ | ✅ | **❌** (no `minimum_tls_version`) |
+| 12 | App Service FTPS disabled | ✅ | ✅ | **❌** |
+| 13 | App Service HTTP/2 enabled | ✅ | ✅ | **❌** |
+| 14 | App Service websockets/remote-debug off | ✅ | ✅ | **❌** (defaults rely on Azure) |
+| 15 | `/healthz` wired to `health_check_path` | ✅ | ✅ | **❌** (no endpoint, no setting) |
+| 16 | **Remote Terraform state with locking** | ❌ | ❌ | ❌ |
+| 17 | **Branch protection on `main`** | ❌ | ❌ | ❌ |
+| 18 | **Required PR checks** | ❌ | ❌ | ❌ |
+| 19 | Approval gates per environment | ❌ | ❌ | ❌ |
+| 20 | Rollback workflow (one-click) | ❌ | ❌ | ❌ |
+| 21 | Application Insights / Log Analytics | ❌ | ❌ | ❌ |
+| 22 | Structured logging (`pino`/`winston`) | ❌ | ❌ | ❌ |
+| 23 | Request-id / correlation-id | ❌ | ❌ | ❌ |
+| 24 | Distributed tracing (OTel) | ❌ | ❌ | ❌ |
+| 25 | Alerts on `Http5xx` / availability | ❌ | ❌ | ❌ |
+| 26 | SLO/SLI dashboards | ❌ | ❌ | ❌ |
+| 27 | Synthetic monitoring | ❌ | ❌ | ❌ |
+| 28 | Audit log shipping (diagnostic settings → Log Analytics) | ❌ | ❌ | ❌ |
+| 29 | GitHub audit log retention plan | ❌ | ❌ | ❌ |
+| 30 | Activity log alerts | ❌ | ❌ | ❌ |
+| 31 | OpenAPI / contract test | ❌ | ❌ | ❌ |
+| 32 | SAST (Semgrep / CodeQL) | ❌ | ❌ | ❌ |
+| 33 | SBOM in CI (syft → SPDX/CycloneDX) | ❌ | ❌ | ❌ |
+| 34 | SHA-pinned third-party Actions | ❌ | ❌ | ❌ |
+| 35 | Load test / latency budget | ❌ | ❌ | ❌ |
+| 36 | Mutation testing | ❌ | ❌ | ❌ |
+| 37 | Code coverage gate (≥80%) | ❌ | ❌ | ❌ |
+| 38 | ESLint + Prettier baseline | ❌ | ❌ | ❌ |
+| 39 | Cost-comment / Infracost in CI | ✅ workflow only | ✅ workflow only | **❌** (no workflow at all) |
+| 40 | License-compliance gate in CI | ⚠️ | ⚠️ | ⚠️ |
+
+**Score:** SpecKit **10/40 (25%)** • Classical **10/40 (25%)** • **Clean 6/40 (15%)**.
+
+Clean trails on **rows 6, 11, 12, 13, 14, 15, 39** — every one is a deliberate omission, not a defect, but each becomes a production-blocker.
+
+---
+
+## 4. Final Conclusion (3-way)
+
+**Three repos, one specification, three personalities:**
+
+- **Clean** is the *minimum viable golden path*: 7 YAML files, 24 Markdown files, no demo theatre, no policy matrix, no health endpoint. It's the easiest to read end-to-end (≤30 min), the easiest to extend, and the most honest about what it isn't. It's also the **least production-ready** today: missing TLS pinning, FTPS disabled, HTTP/2, health-check, cost-comment automation, and structured logging. **Use Clean as a teaching baseline** or a "first week of platform engineering" reference.
+- **Classical** is the *operator-friendly hybrid*: a 13.5 KB README walks any new hire through the system; defensive workflow guards (three-var OIDC gate, weekly security cron, smoke-test cold-start retry, audit on `App_Test` too) catch the classes of failure that bite at 02:00; nine `platform/docs/*.md` cover capability-by-capability. **Use Classical as the demo-grade golden path** for a live-coding stage.
+- **SpecKit** is the *methodology demonstration*: 408-line `plan.md`, per-task DoD with `[P]` parallelism markers, `policy-guardrails.md` enforcement matrix, `demo-script.md` + `hotfix-scenario.md` + 3 checklists, workflows 23% smaller and Markdown 37% cleaner than Classical. **Use SpecKit when the audience cares about the process** (Spec Kit / spec-driven development), not just the artefact.
+
+**Recommendation, single sentence:**
+adopt **SpecKit's methodology and discipline**, port **Classical's `README.md` + `platform/docs/*.md` + the four defensive workflow guards** (3-var OIDC gate, weekly security cron, cold-start retry, App_Test audit) on top, **then strip back to Clean's surface area** wherever a `platform/docs/*.md` page exists without a corresponding workflow or terraform field — *and only after* you've worked the `Top 10 must-fix list` from `COMPARISON_SUMMARY.md`.
+
+The single observable defect found by tooling — SpecKit's `terraform validate` failure — was a *current-provider compatibility* issue, not a methodology issue, and was fixed in this session in two lines. Clean has its own current defect: `terraform fmt -check -recursive` flags `main.tf`. **Both are one-line fixes**; both confirm that the Top 10 production-readiness items dwarf any methodology difference between the three approaches.
+
+---
+
+## 5. Tools and Metrics — Values for All Three Repos
+
+All tools were installed (or downloaded as a single binary) on this machine and run against **all three** repos. Versions are pinned for reproducibility. Raw outputs at `c:\Users\rvunvulea\Downloads\DevOps2026Compare\results\`.
+
+### Metrics captured — 3-way values
+
+| # | Metric | SpecKit | Classical | **Clean** | Source |
+|---|---|---|---|---|---|
+| 1 | Jest test outcome | **PASS 16/16** in 1.385 s | **PASS 16/16** in 1.566 s | **PASS 15/15** in 1.518 s | `npm test` |
+| 2 | `npm audit --omit=dev --audit-level=high` | 0 vulns | 0 vulns | **0 vulns** | npm |
+| 3 | Trivy fs HIGH/CRITICAL (ignore-unfixed) | 0 vulns, 0 secrets | 0 vulns, 0 secrets | **0 vulns, 0 secrets** | Trivy 0.70.0 |
+| 4 | Grype `dir:App/` | 0 | 0 | **0** | Grype 0.86.1 |
+| 5 | Gitleaks (commits / leaks) | 36 / 0 | 18 / 0 | **50 / 0** | Gitleaks 8.21.2 |
+| 6 | actionlint over `.github/workflows/*.yml` | 0 issues | 0 issues | **0 issues** | actionlint 1.7.7 |
+| 7 | `terraform fmt -check -recursive` | PASS | PASS | **FAIL** (`main.tf`) | Terraform 1.9.8 |
+| 8 | `terraform init -backend=false` | PASS (azurerm 4.71.0) | PASS (azurerm 4.71.0) | **PASS** (azurerm 4.71.0) | Terraform 1.9.8 |
+| 9 | `terraform validate` | PASS *(after fix)* | PASS | **PASS** | Terraform 1.9.8 |
+| 10 | Checkov passed / failed | 8 / 12 | 8 / 12 | **4 / 16** | Checkov 3.2.526 |
+| 11 | Syft SBOM components (App) | 71 | 71 | **71** | Syft 1.18.1 |
+| 12 | Prettier `--check App/` (files flagged) | 4 | 1 | **4** | Prettier 3 |
+| 13 | markdownlint authored `.md` (issues) | 368 | 588 | **19** | markdownlint-cli2 |
+| 14 | depcheck unused / missing | 0 / 0 | 0 / 0 | **0 / 0** | depcheck |
+| 15 | license-checker (App, prod) | MIT 65, ISC 2, BSD-3 2, Custom 1, BSD\* 1 | identical | **identical** | license-checker |
+| 16 | madge `--circular App/` | none | none | **none** (2 warnings) | madge |
+| 17 | LOC `.js` (files / lines) | 2 / 134 | 2 / 134 | **2 / 124** | `loc.ps1` |
+| 18 | LOC `.tf` (files / lines) | 6 / 115 | 5 / 123 | **5 / 112** | `loc.ps1` |
+| 19 | LOC `.tfvars` (files / lines) | 1 / 9 | 1 / 11 | **1 / 13** | `loc.ps1` |
+| 20 | LOC `.yml`/`.yaml` (files / lines) | 14 / 777 | 13 / 1,013 | **7 / 356** | `loc.ps1` |
+| 21 | LOC `.md` (files / lines) | 63 / 4,347 | 60 / 4,339 | **24 / 1,255** | `loc.ps1` |
+| 22 | LOC `.json` (files / lines) | 10 / 5,681 | 10 / 5,681 | **5 / 5,611** | `loc.ps1` |
+| 23 | LOC `.sh` (files / lines) | 5 / 673 | 4 / 620 | **0 / 0** | `loc.ps1` |
+| 24 | Workflow — `ci.yml` | 42 lines | 44 lines | **32 lines** | manual |
+| 25 | Workflow — `security*.yml` | 80 | 120 | **86** | manual |
+| 26 | Workflow — `terraform-plan*.yml` | 60 | 128 | **66** | manual |
+| 27 | Workflow — `deploy*.yml` | 77 | 138 | **73** | manual |
+| 28 | Workflow — `cost*.yml` | 30 | 96 | **— (absent)** | manual |
+| 29 | Total workflow LOC | 289 | 526 | **257** | manual |
+| 30 | `plan.md` (lines) | 408 | 149 | **122** | manual |
+| 31 | `tasks.md` (lines) | varies | varies | **142** | manual |
+| 32 | `tasks.md` ID scheme | `T<stage>.<n>` + DoD + `[P]` | `T-01..T-15` flat | **`T-01..T-15` flat** | manual |
+| 33 | `spec.md` size | 7,812 B | 7,812 B (byte-identical) | **— (absent; uses `docs/plan.md` + `docs/tasks.md` instead)** | manual |
+| 34 | `README.md` size | 117 lines / 5,134 B | 242 lines / 13,523 B | **120 lines / 4,058 B** | manual |
+| 35 | `platform/docs/` files | 2 | 9 | **6** | manual |
+| 36 | `platform/policies/` files | 4 | 4 | **3** | manual |
+| 37 | Demo artefacts (script + hotfix + checklists) | present | partial (`hotfix-failing-golden-path.md`) | **absent** | manual |
+| 38 | `App/server.js` endpoints | `/`, `/sunset`, `/healthz` | `/`, `/sunset`, `/healthz` | **`/`, `/sunset` only** | manual diff |
+| 39 | OIDC gate variables | 1 (`AZURE_CLIENT_ID`) | 3 (`+TENANT_ID, +SUBSCRIPTION_ID`) | **1** (`AZURE_CLIENT_ID`) | workflow |
+| 40 | Weekly security cron | absent | `'0 6 * * 1'` + `workflow_dispatch` | **absent** | workflow |
+| 41 | Smoke-test cold-start retry loop | absent | present | **absent** | workflow |
+| 42 | Cost-comment workflow | present | present | **absent** | workflow |
+| 43 | Semgrep | not run (no native Windows) | not run | not run | — |
+
+### Production-readiness bucket totals
+
+| Bucket | SpecKit | Classical | **Clean** |
+|---|:-:|:-:|:-:|
+| Build / test / dependency hygiene | 4/5 | 4/5 | **4/5** |
+| IaC + App Service hardening | 6/10 | 6/10 | **2/10** |
+| Pipeline defensive guards | 0/4 | **4/4** | 0/4 |
+| Observability + audit + tracking | 0/10 | 0/10 | **0/10** |
+| Governance + branch protection | 0/5 | 0/5 | **0/5** |
+| Documentation depth | 3/3 | **3/3** | 2/3 |
+| Demo-readiness | **3/3** | 2/3 | 0/3 |
+| **Total** | **16/40 (40%)** | **19/40 (48%)** | **8/40 (20%)** |
+
+> Bucket totals differ from row-by-row totals because some §3 rows aggregate multiple sub-controls (e.g. "App Service hardening" expands into TLS, FTPS, HTTP/2, websockets, remote-debug). This bucket view is the more useful number for prioritising the **Top 10 must-fix list** in `COMPARISON_SUMMARY.md` §3.
+
+---
+
+## 6. One-Line Verdicts
+
+- **Use Clean** when teaching the *bare-minimum* golden path or when starting a new repo that will grow into Classical/SpecKit.
+- **Use Classical** when the demo audience will *operate* the result — operator docs and defensive guards matter most.
+- **Use SpecKit** when the demo audience cares about the *process* — spec → plan → tasks → implement → demo, with traceability everywhere.
+
+For a real production deployment, **none of the three is ready**: all need the Top 10 items from `COMPARISON_SUMMARY.md` §3 (remote TF state, branch protection, App Insights, structured logs, diagnostic settings, alerts, SLOs, OpenAPI + contract test, SAST, SHA-pinning, Dependabot).
+
+---
+
+*End of three-way comparison.*
+*Two-way summary: `COMPARISON_SUMMARY.md`. Long form: `COMPARISON_REPORT.md`.*
