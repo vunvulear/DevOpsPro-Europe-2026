@@ -2,9 +2,9 @@
 
 | Repo | Approach | Path |
 |---|---|---|
-| **SpecKit** | Spec Kit-driven (`/speckit.specify` → `plan` → `tasks` → `implement`) | `c:\Users\rvunvulea\Downloads\DevOps2026_Spec\DevOpsPro-Europe-2026` |
-| **Classical** | Numbered-prompts approach with rich operator docs and defensive workflow guards | `c:\Users\rvunvulea\Downloads\DevOps2026` |
-| **Clean** | Pure prompting only — minimal scaffolding, no Spec Kit, no demo artefacts | `c:\Users\rvunvulea\Downloads\DevOps2026_Clean` |
+| **SpecKit** | Spec Kit-driven (`/speckit.specify` → `plan` → `tasks` → `implement`) | `\DevOps2026_Spec\DevOpsPro-Europe-2026` |
+| **Classical** | Numbered-prompts approach with rich operator docs and defensive workflow guards | \DevOps2026` |
+| **Clean** | Pure prompting only — minimal scaffolding, no Spec Kit, no demo artefacts | `\DevOps2026_Clean` |
 
 ---
 
