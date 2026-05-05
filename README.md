@@ -2,10 +2,10 @@
 
 | Repo | Approach | Cloud target | Path |
 |---|---|---|---|
-| **SpecKit** | Spec Kit-driven (`/speckit.specify` → `plan` → `tasks` → `implement`) | Azure App Service | `c:\Users\rvunvulea\Downloads\DevOps2026_Spec\DevOpsPro-Europe-2026` |
-| **Classical** | Numbered prompts with rich operator docs and defensive workflow guards | Azure App Service | `c:\Users\rvunvulea\Downloads\DevOps2026` |
-| **Clean** | Pure prompting only — minimal scaffolding | Azure App Service | `c:\Users\rvunvulea\Downloads\DevOps2026_Clean` |
-| **BMAD** | BMAD method (skills, agents, manifests under `.agents/`) | Azure App Service | `c:\Users\rvunvulea\Downloads\DevOps2026_BMAD` |
+| **SpecKit** | Spec Kit-driven (`/speckit.specify` → `plan` → `tasks` → `implement`) | Azure App Service | `DevOps2026_Spec\DevOpsPro-Europe-2026` |
+| **Classical** | Numbered prompts with rich operator docs and defensive workflow guards | Azure App Service | `DevOps2026` |
+| **Clean** | Pure prompting only — minimal scaffolding | Azure App Service | `DevOps2026_Clean` |
+| **BMAD** | BMAD method (skills, agents, manifests under `.agents/`) | Azure App Service | `DevOps2026_BMAD` |
 
 ---
 
