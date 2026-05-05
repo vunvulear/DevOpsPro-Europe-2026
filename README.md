@@ -66,6 +66,26 @@ The suite (`App_Test/tests/sunset.test.js`) covers:
 - **`GET /sunset`** — status, city/country, timezone, coordinates, `HH:MM:SS` formatting, valid ISO `sunset_utc`, sunset day matches today in `Europe/Bucharest`, and parity with a fresh `SunCalc` computation.
 - **Unknown routes** — returns `404`.
 
+## CI
+
+Continuous Integration runs in GitHub Actions via
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+- **When it runs:** on pull requests and pushes targeting `main` or
+  `prompt_only`.
+- **What it does:** sets up Node.js 20 with npm caching, installs
+  dependencies for `App/` and `App_Test/`, then runs the Jest +
+  Supertest suite.
+- **Why it matters for the golden path:** every change is built and
+  tested automatically before it can be merged - the foundation that
+  every later capability (security, IaC, deploy) builds on.
+
+To validate locally:
+
+```powershell
+cd App ; npm ci ; cd ..\App_Test ; npm ci ; npm test
+```
+
 ## Platform Engineering
 
 This repository is also a small **Platform Engineering golden path**
