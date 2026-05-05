@@ -86,6 +86,22 @@ To validate locally:
 cd App ; npm ci ; cd ..\App_Test ; npm ci ; npm test
 ```
 
+## Operational readiness
+
+Once the app is deployed to Azure App Service, the golden path
+expects a small set of operational basics:
+
+- **Health endpoint:** `GET /` returns `200` and an info payload.
+- **Smoke tests:** the deploy workflow `curl`s `/` and `/sunset`
+  after deployment and fails fast on any non-2xx response.
+- **Logs:** App Service -> Monitoring -> Log stream.
+- **Rollback:** re-run the deploy workflow against a known-good
+  commit.
+- **Future work:** structured logging, Application Insights,
+  OpenTelemetry, alerts and SLOs.
+
+Full details: [`platform/docs/operational-readiness.md`](platform/docs/operational-readiness.md).
+
 ## Platform Engineering
 
 This repository is also a small **Platform Engineering golden path**
