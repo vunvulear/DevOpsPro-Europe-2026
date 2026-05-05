@@ -44,6 +44,32 @@ terraform validate
 `terraform plan` requires Azure authentication. For local use, run
 `az login` first.
 
+## CI workflow
+
+A GitHub Actions workflow runs Terraform validation on every PR and
+push that touches `infra/terraform/`:
+[`.github/workflows/terraform-plan.yml`](../../.github/workflows/terraform-plan.yml).
+
+- **Always runs (no secrets needed):** `terraform fmt -check`,
+  `terraform init -backend=false`, `terraform validate`.
+- **Conditional `terraform plan`:** runs only when the following
+  GitHub **repository variables** are set:
+  - `AZURE_CLIENT_ID`
+  - `AZURE_TENANT_ID`
+  - `AZURE_SUBSCRIPTION_ID`
+- **Authentication:** the `plan` job uses GitHub Actions OIDC via
+  `azure/login@v2`. No client secrets are stored.
+
+To enable real `plan` runs:
+
+1. Configure a federated credential on an Azure AD app pointing at
+   this repository.
+2. Add `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
+   as repository **variables** (not secrets - they are not
+   sensitive in this OIDC flow, but treat them as configuration).
+3. Grant the app the minimum role on the target subscription /
+   resource group.
+
 ## Authentication
 
 The provider deliberately does **not** hardcode credentials.
